@@ -78,10 +78,15 @@ Production URLs are never hard-coded. Copy `.env.example` to `.env` and keep
 
 ### Environments
 
-| | Endpoint | LINE environment |
-| --- | --- | --- |
-| Development | `https://dorm.playdevx.com/` | Developing |
-| Production | `https://app.dorm.place/` | Published |
+| | Frontend | Backend API | LINE environment |
+| --- | --- | --- | --- |
+| Development | `https://dorm.playxdev.com` | `https://apidorm.playxdev.com` | Developing |
+| Production | `https://app.dorm.place` | `https://api.dorm.place` | Published |
+
+`playxdev.com` is the shared PlayDevX development root, so API subdomains are
+project-level and flat: `api<project>.playxdev.com` — `apidorm`, `apipenbun`,
+`apiedv`. Not `api.dorm.playxdev.com`. `dorm.place` is the product's own domain
+and uses the nested `api.` form.
 
 Moving to production changes the LIFF endpoint and configuration only. It must
 never require creating a second LINE MINI App.
@@ -91,6 +96,12 @@ never require creating a second LINE MINI App.
 The app is a static Vite build hosted on **Cloudflare Pages**. `wrangler.jsonc`
 declares `pages_build_output_dir`, which is what marks the project as Pages
 rather than a Worker.
+
+Current deployment: <https://dorm-mini.pages.dev>
+
+`.node-version` pins Node to 22.16.0 for the Pages build image. Vite 7 requires
+`^20.19.0 || >=22.12.0`; the v3 build image already defaults to a compatible
+version, but pinning keeps older build images from silently failing.
 
 > Cloudflare now recommends Workers with static assets for new projects. Pages
 > remains supported and actively maintained. Switching later means replacing
@@ -112,15 +123,15 @@ npm run deploy              # builds, then uploads dist/
 npm run deploy:preview      # same, to the preview branch
 ```
 
-If your token has more than one Cloudflare account, pin the target account so
-Wrangler does not have to guess:
+Pages configuration files reject `account_id` — it is a Workers-only field. If
+your token has access to more than one Cloudflare account, select it with an
+environment variable instead:
 
-```jsonc
-// wrangler.jsonc
-"account_id": "<ACCOUNT_ID>"
+```bash
+export CLOUDFLARE_ACCOUNT_ID=<ACCOUNT_ID>
 ```
 
-or export `CLOUDFLARE_ACCOUNT_ID`. Run `npx wrangler whoami` to list accounts.
+Run `npx wrangler whoami` to list the accounts your token can reach.
 
 With direct upload, `VITE_*` values come from your **local** `.env`, since the
 build happens on your machine.
@@ -157,7 +168,7 @@ framing restrictions break those flows.
 ### Pointing LINE at the deployment
 
 After the first deploy, set the LINE Developers Console **Developing** endpoint
-URL to the Pages URL (or to `https://dorm.playdevx.com` once the custom domain
+URL to the Pages URL (or to `https://dorm.playxdev.com` once the custom domain
 is attached). Production later swaps in `https://app.dorm.place`.
 
 Changing the endpoint never requires creating a second LINE MINI App.

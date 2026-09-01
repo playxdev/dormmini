@@ -9,4 +9,7 @@
   // Pages serves the Vite build as static files. There is no Worker script:
   // every VITE_* value is inlined at build time, so environment variables must
   // be set as *build* variables in the Pages project, not runtime bindings.
+  //
+  // Pages configs reject "account_id". If your token has more than one account,
+  // export CLOUDFLARE_ACCOUNT_ID before deploying.
 }

@@ -13,7 +13,7 @@ multi-tenant SaaS platform.
 The first implementation target is:
 
 ``` text
-https://dorm.playdevx.com/
+https://dorm.playxdev.com/
 ```
 
 This is the **Developing** environment and will later be replaced by the
@@ -70,7 +70,7 @@ Both users use the same MINI App.
 
 ``` text
 MINI App Endpoint:
-https://dorm.playdevx.com/
+https://dorm.playxdev.com/
 
 Environment:
 Developing
@@ -142,7 +142,7 @@ LINE
 LINE MINI App
  │
  ▼
-dorm.playdevx.com
+dorm.playxdev.com
  │
  ▼
 LIFF initialization
@@ -417,7 +417,7 @@ LINE MINI App
       │
       │ HTTPS
       ▼
-https://api.dorm.playdevx.com
+https://apidorm.playxdev.com
 ```
 
 The exact backend implementation is intentionally independent of the
@@ -463,11 +463,50 @@ The server must derive authorized resources from the authenticated user.
 
 ## 13. Domain Strategy
 
-Current:
+### Development --- PlayDevX root domain
+
+The development root domain is:
 
 ``` text
-dorm.playdevx.com
+playxdev.com
 ```
+
+The Dorm project uses:
+
+``` text
+Frontend:      https://dorm.playxdev.com
+Backend API:   https://apidorm.playxdev.com
+```
+
+### API subdomain naming convention
+
+PlayDevX hosts multiple projects and each project may have its own API.
+API subdomains are therefore project-level, directly under the root domain:
+
+``` text
+api<project>.playxdev.com
+```
+
+Examples:
+
+``` text
+apidorm.playxdev.com
+apipenbun.playxdev.com
+apiedv.playxdev.com
+```
+
+Do NOT use a nested form such as:
+
+``` text
+api.dorm.playxdev.com
+```
+
+The nested form would make each project its own zone-like namespace and
+defeats the flat, project-level API convention.
+
+Note also that the root domain is `playxdev.com`, not `playdevx.com`.
+
+### Production
 
 Recommended future production structure:
 
@@ -475,6 +514,10 @@ Recommended future production structure:
 app.dorm.place
 api.dorm.place
 ```
+
+`dorm.place` is the product's own domain rather than a shared multi-project
+root, so the nested `api.` form is correct there. The `api<project>` convention
+applies only under `playxdev.com`.
 
 Example:
 
@@ -548,8 +591,8 @@ Example `.env.example`:
 ``` env
 VITE_APP_ENV=development
 
-VITE_APP_URL=https://dorm.playdevx.com
-VITE_API_BASE_URL=https://api.dorm.playdevx.com
+VITE_APP_URL=https://dorm.playxdev.com
+VITE_API_BASE_URL=https://apidorm.playxdev.com
 
 VITE_LINE_LIFF_ID=<DEVELOPING_LIFF_ID>
 
@@ -626,7 +669,7 @@ The first successful demo is considered complete when this flow works:
 ``` text
 1. Open MINI App from LINE
           ↓
-2. dorm.playdevx.com loads
+2. dorm.playxdev.com loads
           ↓
 3. LIFF initializes
           ↓
@@ -732,7 +775,7 @@ dist/
 Cloudflare Pages
     │
     ▼
-dorm.playdevx.com   (Developing)
+dorm.playxdev.com   (Developing)
 app.dorm.place      (Published)
 ```
 
@@ -770,6 +813,9 @@ Direct upload:
 npm run deploy
 ```
 
+Pages configuration files do not accept `account_id`. Where a token can reach
+more than one account, `CLOUDFLARE_ACCOUNT_ID` selects the target.
+
 Git-connected build:
 
 ``` text
@@ -806,7 +852,7 @@ After deployment, the LINE Developers Console endpoint URL for the target
 environment is pointed at the Pages deployment.
 
 ``` text
-Developing   →   https://dorm.playdevx.com/
+Developing   →   https://dorm.playxdev.com/
 Published    →   https://app.dorm.place/
 ```
 
