@@ -29,22 +29,39 @@ https://app.dorm.place/
 
 The platform uses one LINE MINI App for all participating dormitories.
 
+It is built as three services over **one shared database**.
+
 ``` text
-                         LINE
-                          │
-                          ▼
-                 dorm.place MINI App
-                          │
-                          ▼
-                dorm.place Web App
-                          │
-                          ▼
-                  Backend API
-                          │
-             ┌────────────┼────────────┐
-             ▼            ▼            ▼
-          Tenant       Property       Room
+   LINE user                          dormitory owner / staff
+       │                                        │
+       ▼                                        ▼
+ dorm.place MINI App                    dorm.place backoffice
+   (playxdev/dormmini)                   (playxdev/dormplace)
+   Cloudflare Pages                      Cloudflare Workers
+       │                                        │
+       │ HTTPS                                  │ D1 binding
+       ▼                                        │
+  Tenant API                                    │
+   (playxdev/dormapi)                           │
+   Go, container host                           │
+       │ D1 REST                                │
+       └──────────────┬─────────────────────────┘
+                      ▼
+                Cloudflare D1
+                  `dorm-db`
+                      │
+        ┌─────────────┼─────────────┐
+        ▼             ▼             ▼
+    Building        Room         Contract
 ```
+
+The backoffice **owns the schema**. Its `migrations/` directory is the single
+place any table is defined or changed; the other services read the same
+database and add none of their own.
+
+A second database is not an option. The onboarding flow depends on a contract
+activated in the backoffice being immediately visible to the MINI App, and D1
+offers no query across databases — not even a join.
 
 The application must NOT create a separate LINE MINI App per dormitory.
 
@@ -255,39 +272,79 @@ LINE identity and dorm.place identity are different concepts.
 LINE:
 
 ``` text
-line_user_id
+line_user_id        the `sub` claim of a verified ID token
 ```
 
 dorm.place:
 
 ``` text
-user_id
-tenant_id
-property_id
-room_id
+users               one row per person
+identities          one row per way that person signs in
+memberships         which buildings a person administers
+contracts           which room a person rents
 ```
 
-Recommended relationship:
+### A person is one account
+
+Sign-in providers are planned across LINE, Google, Facebook and email, so the
+provider cannot live on the account itself.
 
 ``` text
-LINE User
-    │
-    ▼
-User Account
-    │
-    ▼
-Tenant
-    │
-    ├── Property
-    │
-    └── Room
+identities
+├── (line,     U56feab…)  ──┐
+├── (google,   107812…)   ──┼──►  users.id
+└── (email,    a@b.com)   ──┘
 ```
 
-The backend is the source of truth for authorization.
+Adding a second provider later adds a row here, not a second account.
 
-The browser must never decide which property or room a user belongs to.
+`users.email` and `users.password_hash` are both nullable: a tenant who signs
+in with LINE has neither.
 
-------------------------------------------------------------------------
+### Role is a relationship, not an attribute
+
+An owner may rent a room in someone else's building. A tenant may buy a
+building years later. Storing a single role on the person breaks at the first
+such case.
+
+``` text
+memberships   user_id + building_id + role(owner|staff)   ← administers
+contracts     tenant_id → tenants.user_id                 ← rents
+```
+
+Seat-based billing counts rows in `memberships`.
+
+### A tenant record can exist before the account
+
+The owner writes the contract at signing, when the tenant may never have opened
+the app.
+
+``` text
+owner fills in the contract
+    └── tenants row created, user_id NULL
+              │
+              │  tenant scans the QR and signs in with LINE
+              ▼
+    identities row added, tenants.user_id filled in
+```
+
+Nothing is created twice. The identity attaches to the record the owner already
+made, which is why the review screen has real terms to show.
+
+### Authorization
+
+The backend is the source of truth.
+
+The browser must never decide which building or room a user belongs to. No
+endpoint accepts a `building_id`, `room_id` or `tenant_id` from the client;
+each is reached by joining the caller's session to the row that grants access:
+
+``` sql
+JOIN tenants t ON t.user_id = ?session
+```
+
+Written this way, forgetting the constraint returns nothing rather than
+returning someone else's data — the failure is visible instead of silent.
 
 ## 8. Multi-Tenant Design
 
@@ -410,13 +467,17 @@ Not required yet:
 
 ``` text
 Home
-├── My Room
-├── Invoice
-├── Payment
-├── Water/Electricity
-├── Repair Request
-└── Announcements
+├── My Room            done
+├── Invoice            done
+├── Payment            blocked on how money is collected
+├── Water/Electricity  blocked on file storage for meter photos
+├── Repair Request     done
+└── Announcements      not started
 ```
+
+Payment and meter readings are blocked on decisions rather than on work:
+whether rent is collected through a gateway or by transfer and slip, and where
+meter photos are stored.
 
 ### Phase 3 --- LINE Messaging
 
@@ -448,32 +509,42 @@ exposing messaging credentials in the MINI App frontend.
 
 ## 11. Backend API
 
-The MINI App should communicate with the dorm.place backend through
-HTTPS.
-
-Suggested API structure:
+The MINI App talks only to the tenant API over HTTPS. The backoffice does not
+serve it, and the MINI App never reaches the database.
 
 ``` text
-POST /api/v1/auth/line
-GET  /api/v1/me
-GET  /api/v1/me/property
-GET  /api/v1/me/room
+POST /api/v1/auth/line              { id_token } -> { token, expires_at }
+GET  /api/v1/me                     identity, building, room
+GET  /api/v1/me/invoices            list + outstanding total
+GET  /api/v1/me/invoices/{id}       items and payments
+GET  /api/v1/me/repairs             list
+POST /api/v1/me/repairs             file one
+GET  /api/v1/me/repairs/{id}        one
+GET  /api/v1/invites/{code}         terms to review before confirming
+POST /api/v1/invites/{code}/claim   confirm and bind
+GET  /healthz
 ```
 
-Example:
+### Conventions
 
-``` text
-LINE MINI App
-      │
-      │ HTTPS
-      ▼
-https://apidorm.playxdev.com
+**Money is integer satang** everywhere, in the database and on the wire. Never
+a float, never a pre-formatted string — the client decides how it reads.
+
+**Dates are Gregorian and ISO.** Buddhist-era years are a presentation
+concern, converted once in the client.
+
+**Errors are stable codes, not messages.** The client maps them to Thai copy of
+its own; a leaked SQL or LINE error would reach the tenant as noise.
+
+``` json
+{ "error": "tenancy_not_found" }
 ```
 
-The exact backend implementation is intentionally independent of the
-frontend.
+**A missing row and someone else's row return the same 404.** Distinguishing
+them would confirm that another tenant's record exists.
 
-------------------------------------------------------------------------
+**Only verified payments count as paid.** A slip the tenant submitted but the
+owner has not accepted must not make an invoice look settled.
 
 ## 12. Security
 
@@ -590,7 +661,25 @@ updated during production rollout.
 
 ## 14. Repository Structure
 
-Recommended frontend structure:
+Three repositories, one database.
+
+``` text
+playxdev/dormplace   backoffice   TypeScript on Workers, D1 binding
+                                  OWNS THE SCHEMA — migrations live here
+                                  checked out locally as works/dorm/backend
+
+playxdev/dormapi     tenant API   Go, container host, D1 over REST
+
+playxdev/dormmini    MINI App     Vite + vanilla JS, Cloudflare Pages
+```
+
+Note the local path mismatch: `dormplace` sits in a directory called
+`backend`, which makes it easy to miss.
+
+**No service outside `dormplace` defines a table.** A schema change is a
+migration in `dormplace/migrations`, applied once to `dorm-db`.
+
+MINI App structure:
 
 ``` text
 dorm-mini/
@@ -741,6 +830,11 @@ The first successful demo is considered complete when this flow works:
 Do not proceed to payment, messaging, invoices, or advanced tenant
 features until this flow is stable.
 
+**Status: complete.** Verified end to end on 2026-09-01 — the MINI App opens
+from LINE, LIFF initialises, the user authenticates, the backend verifies the
+ID token with LINE, resolves the account through `identities`, and renders the
+building and room.
+
 ------------------------------------------------------------------------
 
 ## 19. Future Production Architecture
@@ -791,10 +885,31 @@ Therefore:
 1 LINE MINI App
 1 LINE Login identity integration
 1 Backend platform
+1 Database
 N Properties
 N Tenants
 N Rooms
 ```
+
+### One database, not one per dormitory
+
+A database per dormitory was considered and rejected.
+
+The tenant-facing app is inherently cross-dormitory: one LINE identity may hold
+contracts in two different buildings, and the identity itself belongs to no
+building at all. D1 has no query across databases, so answering "which rooms are
+mine?" would mean one HTTPS request per dormitory on every app launch.
+
+Schema changes would also have to be applied N times, with partial failure
+leaving databases on different versions — worst during beta, when the schema
+moves most.
+
+Isolation is instead enforced in the query shape (§7): access is reached by
+joining the caller's session, so a forgotten constraint returns nothing rather
+than someone else's data.
+
+If one customer ever needs physical isolation, that customer alone can be moved
+to their own database, because the schema is identical.
 
 The property is a data/configuration boundary, not a LINE application
 boundary.
@@ -908,3 +1023,130 @@ Published    →   https://app.dorm.place/
 
 Consistent with section 13, changing the endpoint never requires creating a
 second LINE MINI App.
+
+------------------------------------------------------------------------
+
+## 22. Tenant Onboarding
+
+How a LINE user comes to be bound to one room in one building.
+
+### The rule that shapes everything
+
+A room number is guessable. If a tenant could pick a building and type "609",
+they would see someone else's bills and file repairs against someone else's
+room.
+
+**Binding must always be authorised by the dormitory side.**
+
+### Primary flow: QR issued at handover
+
+The dormitory already knows who lives where. That knowledge is the
+authorisation.
+
+``` text
+owner                                        tenant
+  │
+  │ backoffice: fills in the contract
+  │ marks the room active
+  ▼
+system issues an invite code + QR
+  │
+  │  QR shown on the owner's screen
+  │  at handover
+  │                                    adds the LINE Official Account
+  │                                          │
+  │                                    opens the MINI App, signs in
+  │                                          │
+  │                                    "not linked to a dormitory yet"
+  │                                          │
+  ├───────── scans ─────────────────►  liff.scanCodeV2()
+                                            │
+                                    GET /api/v1/invites/{code}
+                                            │
+                              ┌─────────────────────────┐
+                              │ Oscar Apartment         │
+                              │ Room 609                │
+                              │ Rent      4,500.00      │
+                              │ Deposit   9,000.00      │
+                              │ From      1 Oct 2569    │
+                              │                         │
+                              │  ═══ slide to confirm ══ │
+                              └─────────────────────────┘
+                                            │
+                              POST /api/v1/invites/{code}/claim
+                                            │
+                                            ▼
+                                       home screen
+```
+
+The tenant types nothing.
+
+### The QR carries only a code
+
+``` text
+✅  K7M9P4QX
+❌  {"name":"...","room":"609","rent":450000}
+```
+
+Encoding the terms would hand them to anyone who photographs the code, and
+could never be revoked. The code is opaque; the app fetches the terms from the
+backend, which can expire or revoke it at any time.
+
+For the same reason the QR is shown **on the owner's screen at handover**, not
+printed on a contract that gets photocopied.
+
+### Code alphabet
+
+Codes exclude `0 O`, `1 I L`, `2 Z`, `5 S` and `8 B`, because an owner will
+read one aloud over the phone.
+
+This is not hypothetical: development of this app lost several rounds to a LIFF
+ID transcribed from a screenshot in which a lowercase `l` was read as an
+uppercase `I`.
+
+### Single use without a transaction
+
+D1 permits no parameterised multi-statement write (§21), so the claim cannot be
+a transaction. The guard is in the statement itself:
+
+``` sql
+UPDATE contracts SET confirmed_by_user_id = ?1, ...
+WHERE confirmed_by_user_id IS NULL AND ...
+```
+
+A second claim matches no rows. Linking `tenants.user_id` follows as a separate
+idempotent statement, so a failure between the two is repaired by retrying.
+
+### What confirming records
+
+The confirmation stores a **snapshot** — the rent, deposit and start date as
+they stood when the tenant saw them — not a reference to the contract.
+
+If the owner later amends the rent, the tenant's record of what they agreed to
+must not move with it. That snapshot is the answer to "what did I agree to?"
+months afterwards.
+
+### Fallback
+
+Scanning is unavailable below iOS 14.3, on desktop, and whenever the tenant is
+not standing in front of the owner. The same code therefore also works as a
+link:
+
+``` text
+https://miniapp.line.me/<LIFF_ID>?invite=K7M9P4QX
+```
+
+One code, two ways in — not two systems.
+
+### The LINE Official Account's role
+
+The OA is the distribution and notification channel, not a gate.
+
+Adding it is offered through the MINI App's own add-friend option at login,
+never enforced: a tenant who declines must still be able to reach their room.
+A prompt on the home screen can ask again later.
+
+### Requirements
+
+- **Scan QR** must be enabled for the LIFF app in the LINE Developers Console.
+- On iOS, `liff.scanCodeV2()` works only when the LIFF size is `Full`.

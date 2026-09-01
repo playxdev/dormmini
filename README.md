@@ -7,6 +7,19 @@ One MINI App serves every dormitory. The property is a data boundary, not a
 LINE application boundary. See [`docs/DESIGN-LINE-MINI.md`](docs/DESIGN-LINE-MINI.md)
 for the full specification.
 
+## Where this sits
+
+Three services over one shared Cloudflare D1 database:
+
+| Repo | Role |
+| --- | --- |
+| [playxdev/dormplace](https://github.com/playxdev/dormplace) | Backoffice for owners and staff. **Owns the schema.** |
+| [playxdev/dormapi](https://github.com/playxdev/dormapi) | Tenant API this app calls |
+| playxdev/dormmini | This app |
+
+A second database is not possible: a contract activated in the backoffice has
+to be visible here immediately, and D1 cannot query across databases.
+
 ## Status
 
 **Milestone 1 — authentication.** The app proves that a LINE user can open the
@@ -17,13 +30,22 @@ Open from LINE → LIFF init → LINE login → backend auth
               → resolve tenant/property/room → home screen
 ```
 
-**Phase 2 — tenant features.** In progress, following §10's order. `My Room`
-and `Invoice` are done: the home screen leads with the outstanding balance, and
-the bill screens list invoices and break one down into line items and payments.
+**Phase 2 — tenant features.** Following §10's order:
 
-Payment, meter readings, repair requests, announcements and messaging are not
-implemented; their tiles render disabled so the layout keeps the shape of the
+| | |
+| --- | --- |
+| My Room | done |
+| Invoice | done — balance on the home screen, list and detail |
+| Payment | blocked on how rent is collected |
+| Water/Electricity | blocked on storage for meter photos |
+| Repair Request | done — list, detail, and filing one |
+| Announcements | not started |
+
+Tiles for unbuilt screens render disabled, so the layout keeps the shape of the
 finished design.
+
+**Onboarding** (§22) is built on the API side — reviewing an invite and
+confirming it — but the scan and confirm screens are not in the app yet.
 
 Amounts cross the API as integer satang and dates in the Gregorian calendar.
 `src/lib/format.js` is the only place either becomes what a Thai tenant reads —
