@@ -97,7 +97,11 @@ The app is a static Vite build hosted on **Cloudflare Pages**. `wrangler.jsonc`
 declares `pages_build_output_dir`, which is what marks the project as Pages
 rather than a Worker.
 
-Current deployment: <https://dorm-mini.pages.dev>
+Current deployment: <https://dorm.playxdev.com> (Pages project `dormmini`,
+also reachable at <https://dorm-mini.pages.dev>)
+
+The custom domain is attached to the Pages project directly. Cloudflare manages
+the DNS record for it — there is no hand-written A record and no origin IP.
 
 `.node-version` pins Node to 22.16.0 for the Pages build image. Vite 7 requires
 `^20.19.0 || >=22.12.0`; the v3 build image already defaults to a compatible

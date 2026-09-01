@@ -157,9 +157,11 @@ The endpoint URL is configured per environment in the LINE Developers Console
 under **Web app settings**, and points at the deployed frontend.
 
 ``` text
-Developing   →   the current Cloudflare Pages deployment
+Developing   →   https://dorm.playxdev.com/
 Published    →   https://app.dorm.place/
 ```
+
+Review and Published keep the LINE default endpoints until each is ready.
 
 Never commit secrets or environment-specific credentials into source
 control.
@@ -223,13 +225,22 @@ Conceptual flow:
 
 ``` javascript
 await liff.init({
-    liffId: LINE_LIFF_ID
+    liffId: LINE_LIFF_ID,
+    withLoginOnExternalBrowser: true
 });
 
 if (!liff.isLoggedIn()) {
     liff.login();
 }
 ```
+
+`withLoginOnExternalBrowser` makes LIFF perform the login redirect itself when
+the app is opened outside the LINE client, so a desktop or mobile browser
+reaches an authenticated state rather than stalling as logged out.
+
+One consequence is that the login screen is effectively only reachable inside
+the LINE client, and even there the user is already authenticated. It remains
+in the codebase as the fallback for a failed or cancelled login.
 
 The exact authentication implementation must follow the current LINE
 LIFF/MINI App documentation and should not expose channel secrets in

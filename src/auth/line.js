@@ -21,7 +21,12 @@ export async function initLine() {
     return;
   }
   try {
-    await liff.init({ liffId: config.liffId });
+    await liff.init({
+      liffId: config.liffId,
+      // Outside the LINE client, LIFF performs the login redirect itself
+      // rather than leaving the app in a logged-out state.
+      withLoginOnExternalBrowser: true
+    });
     initialized = true;
   } catch (cause) {
     throw new AppError(ErrorCode.LIFF_INIT_FAILED, cause);
