@@ -83,7 +83,10 @@ function renderError(root, error, options = {}) {
 
   if (config.appEnv !== 'production') {
     // Diagnostics stay in the console. Never rendered to the user.
+    // The cause carries the underlying LIFF or network failure, which is the
+    // part worth reading - AppError itself only names the category.
     console.error('[dorm.place]', code ?? 'UNKNOWN', error);
+    if (error?.cause) console.error('[dorm.place] cause:', error.cause);
   }
 }
 
