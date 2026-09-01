@@ -17,6 +17,10 @@ const MESSAGES = {
     title: 'ไม่สามารถเริ่มต้นแอปพลิเคชันได้',
     detail: 'กรุณาปิดหน้านี้แล้วเปิดใหม่จาก LINE อีกครั้ง'
   },
+  [ErrorCode.MISSING_ID_TOKEN]: {
+    title: 'ไม่สามารถยืนยันตัวตนได้',
+    detail: 'การตั้งค่าสิทธิ์ของแอปพลิเคชันไม่ครบถ้วน กรุณาติดต่อผู้ดูแลระบบ'
+  },
   [ErrorCode.TENANT_NOT_FOUND]: {
     title: 'ยังไม่ได้ผูกบัญชีกับหอพัก',
     detail: 'กรุณาติดต่อผู้ดูแลหอพักเพื่อผูกบัญชี LINE ของคุณกับห้องพัก'
@@ -107,10 +111,12 @@ export async function start(root) {
   try {
     const idToken = getIdToken();
     if (!idToken) {
-      // Logged in but no ID token: the openid scope is missing or the token
-      // expired. A fresh login is the only recovery.
+      // Logged in, but LIFF returned no ID token. This is almost always a
+      // channel misconfiguration: the LIFF app is missing the `openid` scope.
+      // Re-rendering the login screen here would loop forever, because login
+      // succeeds and still yields no token - so surface it as an error.
       clearSession();
-      renderLogin(root);
+      renderError(root, new AppError(ErrorCode.MISSING_ID_TOKEN), { relogin: true });
       return;
     }
 

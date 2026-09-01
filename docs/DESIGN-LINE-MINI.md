@@ -114,12 +114,51 @@ The initial implementation uses only:
 Developing
 ```
 
-The Developing LIFF ID must be stored in application configuration.
-
-Example:
+Each environment has its **own** LIFF ID. They are not interchangeable.
 
 ``` text
-LINE_LIFF_ID=<DEVELOPING_LIFF_ID>
+Developing   2011361700-JZIB29PM
+Review       2011361701-CK48xQPp
+Published    2011361702-IZrdVpdn
+```
+
+The LIFF URL for an environment is:
+
+``` text
+https://miniapp.line.me/<LIFF_ID>
+```
+
+The LIFF ID must be stored in application configuration:
+
+``` text
+VITE_LINE_LIFF_ID=2011361700-JZIB29PM
+```
+
+A LIFF ID is public. It is inlined into the browser bundle by design and
+identifies the app, not the account. The **channel secret** is different: it is
+a credential, belongs on the backend only, and must never appear in the
+frontend, in configuration committed to source control, or in a screenshot.
+
+### Required scopes
+
+``` text
+profile
+openid
+```
+
+`openid` is mandatory. Without it `liff.getIDToken()` returns `null`, the
+backend has nothing to verify, and authentication cannot complete. Because a
+fresh login still yields no token in that state, the app treats a missing ID
+token as a configuration error rather than retrying the login.
+
+### Endpoint URL
+
+The endpoint URL is configured per environment in the LINE Developers Console
+under **Web app settings**, and points at the deployed frontend.
+
+``` text
+Developing   →   the current Cloudflare Pages deployment
+Published    →   https://app.dorm.place/
 ```
 
 Never commit secrets or environment-specific credentials into source
