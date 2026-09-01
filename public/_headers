@@ -1,0 +1,26 @@
+# Cloudflare Pages header rules.
+#
+# No X-Frame-Options / frame-ancestors: LINE MINI Apps are opened inside the
+# LINE in-app browser and the LIFF login flow performs cross-origin redirects.
+# Framing restrictions have broken LIFF flows in the past - leave them off.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), geolocation=(), microphone=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+# index.html must never be cached: it references hashed asset filenames.
+/
+  Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
+
+# Content-hashed build output (see vite.config.js assetsDir) - immutable.
+/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Verbatim copies of public/assets - filenames are stable, so revalidate.
+/assets/*
+  Cache-Control: public, max-age=3600

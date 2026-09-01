@@ -1,0 +1,22 @@
+{
+  "name": "dorm-mini",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "dorm.place LINE MINI App (tenant-facing)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "pages:dev": "wrangler pages dev",
+    "deploy": "npm run build && wrangler pages deploy",
+    "deploy:preview": "npm run build && wrangler pages deploy --branch preview"
+  },
+  "dependencies": {
+    "@line/liff": "^2.26.0"
+  },
+  "devDependencies": {
+    "vite": "^7.1.3",
+    "wrangler": "^4.127.1"
+  }
+}

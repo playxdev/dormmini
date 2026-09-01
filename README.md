@@ -1,2 +1,238 @@
-# dormmini
-  Dormitory Management Platform By LINE MINI APP
+# dorm-mini
+
+`dorm.place` LINE MINI App — the tenant-facing frontend for the dorm.place
+multi-tenant dormitory management platform.
+
+One MINI App serves every dormitory. The property is a data boundary, not a
+LINE application boundary. See [`docs/DESIGN-LINE-MINI.md`](docs/DESIGN-LINE-MINI.md)
+for the full specification.
+
+## Status
+
+**Milestone 1 — authentication.** The app proves that a LINE user can open the
+MINI App and be identified by dorm.place:
+
+```
+Open from LINE → LIFF init → LINE login → backend auth
+              → resolve tenant/property/room → home screen
+```
+
+The home screen renders the authenticated identity, property and room. Its
+feature tiles and bottom navigation are the Phase 2 shell and are deliberately
+inert — they exist so Phase 2 screens drop into a finished layout without a
+rewrite. Payment, invoices, meter readings, repair requests and messaging are
+not implemented.
+
+## Stack
+
+- [Vite](https://vite.dev) — dev server and build
+- [`@line/liff`](https://developers.line.biz/en/docs/liff/) — LINE Front-end Framework
+- Vanilla ES modules, no UI framework
+
+## Getting started
+
+```bash
+npm install
+cp .env.example .env
+# fill in VITE_LINE_LIFF_ID and VITE_API_BASE_URL
+npm run dev
+```
+
+### Running without LINE or a backend
+
+`VITE_MOCK=1` skips LIFF entirely and serves fixture data, so the UI can be
+worked on in a normal desktop browser:
+
+```bash
+VITE_MOCK=1 npm run dev
+```
+
+Mock mode requires no LIFF ID and makes no network calls.
+
+### Scripts
+
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Dev server on `0.0.0.0:5173` (LAN-accessible for phone testing) |
+| `npm run build` | Production build into `dist/` |
+| `npm run preview` | Serve the production build locally |
+| `npm run pages:dev` | Serve the build through the Cloudflare Pages runtime (applies `_headers`) |
+| `npm run deploy` | Build and deploy to Cloudflare Pages |
+| `npm run deploy:preview` | Build and deploy to the `preview` branch |
+
+## Configuration
+
+All configuration is environment-based. Vite only exposes variables prefixed
+with `VITE_` to browser code.
+
+| Variable | Description |
+| --- | --- |
+| `VITE_APP_ENV` | `development` or `production` |
+| `VITE_APP_URL` | Public URL of this app |
+| `VITE_API_BASE_URL` | dorm.place backend base URL |
+| `VITE_LINE_LIFF_ID` | LIFF ID for the target LINE environment |
+| `VITE_MOCK` | `1` to run with fixtures and no LINE/backend |
+
+Production URLs are never hard-coded. Copy `.env.example` to `.env` and keep
+`.env` out of source control.
+
+### Environments
+
+| | Endpoint | LINE environment |
+| --- | --- | --- |
+| Development | `https://dorm.playdevx.com/` | Developing |
+| Production | `https://app.dorm.place/` | Published |
+
+Moving to production changes the LIFF endpoint and configuration only. It must
+never require creating a second LINE MINI App.
+
+## Deployment
+
+The app is a static Vite build hosted on **Cloudflare Pages**. `wrangler.jsonc`
+declares `pages_build_output_dir`, which is what marks the project as Pages
+rather than a Worker.
+
+> Cloudflare now recommends Workers with static assets for new projects. Pages
+> remains supported and actively maintained. Switching later means replacing
+> `pages_build_output_dir` with an `assets` block — the app code is unaffected.
+
+### Environment variables are build-time
+
+Vite inlines every `VITE_*` value into the bundle at build time. They are
+**build** variables, not runtime bindings — set them under *Settings →
+Environment variables → Production/Preview* in the Pages project, or they will
+be missing from the deployed bundle. Everything inlined is public by design
+(LIFF ID, API base URL); no secret ever belongs in this list.
+
+### Option A — direct upload from your machine
+
+```bash
+npx wrangler login          # once
+npm run deploy              # builds, then uploads dist/
+npm run deploy:preview      # same, to the preview branch
+```
+
+If your token has more than one Cloudflare account, pin the target account so
+Wrangler does not have to guess:
+
+```jsonc
+// wrangler.jsonc
+"account_id": "<ACCOUNT_ID>"
+```
+
+or export `CLOUDFLARE_ACCOUNT_ID`. Run `npx wrangler whoami` to list accounts.
+
+With direct upload, `VITE_*` values come from your **local** `.env`, since the
+build happens on your machine.
+
+### Option B — Git-connected build (recommended for a team)
+
+Connect the repository in the Cloudflare dashboard and use:
+
+| Setting | Value |
+| --- | --- |
+| Framework preset | None (or Vite) |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Node version | 20 or later |
+
+Then add `VITE_APP_ENV`, `VITE_APP_URL`, `VITE_API_BASE_URL` and
+`VITE_LINE_LIFF_ID` as production and preview environment variables. Every push
+to `main` deploys production; other branches get preview URLs.
+
+### Caching and headers
+
+`public/_headers` is copied verbatim into the build:
+
+- `/static/*` — content-hashed Vite output, cached immutably for one year.
+  `vite.config.js` sets `assetsDir: "static"` specifically to keep hashed output
+  separate from `public/assets/`, whose filenames are stable.
+- `/assets/*` — verbatim copies of `public/assets/`, one hour with revalidation.
+- `/` and `/index.html` — `no-cache`, so a deploy is picked up immediately.
+
+No `X-Frame-Options` or `frame-ancestors` is set. LINE MINI Apps run inside the
+LINE in-app browser and the LIFF login flow performs cross-origin redirects;
+framing restrictions break those flows.
+
+### Pointing LINE at the deployment
+
+After the first deploy, set the LINE Developers Console **Developing** endpoint
+URL to the Pages URL (or to `https://dorm.playdevx.com` once the custom domain
+is attached). Production later swaps in `https://app.dorm.place`.
+
+Changing the endpoint never requires creating a second LINE MINI App.
+
+
+## Project structure
+
+```
+src/
+├── main.js            entry point
+├── app/
+│   ├── config.js      environment configuration
+│   └── bootstrap.js   startup sequence, routing, error screens
+├── auth/
+│   ├── line.js        all LIFF calls (the only LINE-aware module)
+│   └── session.js     backend session token
+├── api/
+│   └── client.js      HTTPS client, typed AppError codes
+├── pages/
+│   ├── login.js       unauthenticated screen
+│   └── home.js        authenticated screen
+└── styles/
+    └── app.css        design tokens and screen styles
+
+public/
+├── favicon.svg
+├── _headers           Cloudflare Pages cache and security headers
+└── assets/mascot.png
+
+wrangler.jsonc         Cloudflare Pages project config
+```
+
+LINE-specific logic stays inside `src/auth/line.js`. No other module imports
+`@line/liff`.
+
+## Security
+
+The browser holds only public configuration: the LIFF ID, the API base URL and
+the app environment. Channel secrets, Messaging API tokens, database
+credentials and JWT signing keys live on the backend.
+
+Authorization is the backend's job. The client never sends `property_id`,
+`room_id` or `tenant_id` — the server derives every authorized resource from
+the authenticated session. `GET /api/v1/me` returns the context the server
+decided on.
+
+Authentication sends the LINE **ID token** (signed by LINE, verifiable by the
+backend) rather than the access token. The returned session token is kept in
+`sessionStorage`, so it does not outlive the MINI App window.
+
+Raw API errors, stack traces and tokens are never rendered. `AppError` carries
+a stable code that `bootstrap.js` maps to Thai copy; diagnostics go to the
+console in non-production builds only.
+
+## Backend API
+
+```
+POST /api/v1/auth/line     { id_token } -> { token }
+GET  /api/v1/me            -> { user_id, tenant_id, property_id, property_name, room_id }
+```
+
+Phase 2 will add `/api/v1/me/property` and `/api/v1/me/room`.
+
+## Design
+
+The visual system is derived from `docs/dorm-uxui-v1.0.png`. Tokens live at the
+top of `src/styles/app.css`:
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `--green` | `#009245` | Primary actions, LINE login, nav FAB |
+| `--green-header` | `#008d58` | Home header block |
+| `--bg` | `#f3f7f4` | Page ground |
+| `--danger` | `#de0000` | Outstanding balance |
+| `--blue` / `--purple` / `--orange` / `--red` | | Feature accents |
+
+UX principles: mobile-first, Thai-first, fast startup, large touch targets,
+minimal typing, important actions within one or two taps.

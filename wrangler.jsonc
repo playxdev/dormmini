@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+
+  // The presence of pages_build_output_dir marks this as a Pages project.
+  "name": "dorm-mini",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-09-01"
+
+  // Pages serves the Vite build as static files. There is no Worker script:
+  // every VITE_* value is inlined at build time, so environment variables must
+  // be set as *build* variables in the Pages project, not runtime bindings.
+}
