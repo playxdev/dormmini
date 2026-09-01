@@ -7,11 +7,16 @@
 
 import { config, assertConfig } from './config.js';
 import { initLine, isLoggedIn, login, getIdToken, getLineProfile, closeWindow } from '../auth/line.js';
-import { authenticateWithLine, fetchMe, fetchInvoices, fetchInvoice, AppError, ErrorCode } from '../api/client.js';
+import {
+  authenticateWithLine, fetchMe, fetchInvoices, fetchInvoice,
+  fetchRepairs, fetchRepair, createRepair,
+  AppError, ErrorCode
+} from '../api/client.js';
 import { setToken, setProfile, clearSession } from '../auth/session.js';
 import { renderLogin } from '../pages/login.js';
 import { renderHome } from '../pages/home.js';
 import { renderBills, renderBillDetail } from '../pages/bills.js';
+import { renderRepairs, renderRepairDetail, renderRepairForm } from '../pages/repairs.js';
 
 const MESSAGES = {
   [ErrorCode.LIFF_INIT_FAILED]: {
@@ -185,6 +190,34 @@ function startRouter(root, session) {
       } catch (error) {
         renderError(root, error, { retry: true });
       }
+      return;
+    }
+
+    if (view === 'repairs') {
+      try {
+        renderRepairs(root, await fetchRepairs(), navigate);
+      } catch (error) {
+        renderError(root, error, { retry: true });
+      }
+      return;
+    }
+
+    if (view === 'repair') {
+      try {
+        renderRepairDetail(root, await fetchRepair(param), navigate);
+      } catch (error) {
+        renderError(root, error, { retry: true });
+      }
+      return;
+    }
+
+    if (view === 'repair-new') {
+      renderRepairForm(root, navigate, async (payload) => {
+        const repair = await createRepair(payload);
+        // Straight to the new request rather than back to the list, so the
+        // tenant sees the reference number they will quote to staff.
+        await navigate('repair', repair.id);
+      });
     }
   };
 

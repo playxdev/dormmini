@@ -504,3 +504,80 @@ svg { width: 100%; height: 100%; fill: currentColor; display: block; }
 .line-item span:first-child { color: var(--muted); }
 .line-item span:last-child { font-weight: 600; }
 .line-item--paid span:last-child { color: var(--green); }
+
+/* ---------- repair requests ---------- */
+
+.chip--warn { background: #fff3e0; color: #b06800; }
+.chip--wait { background: #eef1f4; color: #4b5a63; }
+.chip--muted { background: #f0f0f0; color: #7a7a7a; }
+
+.repair-card__ref { font-size: 13.5px; color: var(--muted); font-weight: 700; }
+.repair-card__title { font-size: 15.5px; font-weight: 700; }
+
+.repair-detail__title { margin: 0 0 4px; font-size: 17px; font-weight: 700; }
+.repair-detail__body { margin: 10px 0 0; font-size: 14.5px; white-space: pre-wrap; }
+
+.timeline { list-style: none; margin: 12px 0 0; padding: 0; }
+
+.timeline__item {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 0 0 18px 4px;
+}
+
+/* The connector stops at the last item so the line does not dangle. */
+.timeline__item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 14px;
+  bottom: 0;
+  width: 2px;
+  background: var(--line);
+}
+
+.timeline__dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--green);
+  outline: 3px solid var(--surface);
+}
+
+.timeline__item strong { display: block; font-size: 14.5px; }
+.timeline__item p { margin: 2px 0 0; font-size: 13.5px; color: var(--text); }
+.timeline__item small { color: var(--muted); font-size: 12.5px; }
+
+/* ---------- forms ---------- */
+
+.form { display: flex; flex-direction: column; gap: 16px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field__label { font-size: 14px; font-weight: 700; }
+.field__label small { color: var(--muted); font-weight: 400; }
+
+.field__control {
+  min-height: var(--tap);
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.field__control:focus-visible { outline: 2px solid var(--green); outline-offset: -1px; }
+textarea.field__control { min-height: 96px; resize: vertical; }
+
+.form__error {
+  margin: 0;
+  padding: 10px 14px;
+  background: #fdecee;
+  color: var(--danger);
+  border-radius: var(--radius);
+  font-size: 13.5px;
+}
+
+.btn:disabled { opacity: .6; }

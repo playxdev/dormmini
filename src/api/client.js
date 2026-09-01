@@ -94,6 +94,15 @@ const MOCK_INVOICES = {
   ]
 };
 
+const MOCK_REPAIRS = {
+  repairs: [
+    { id: 'r1', ref: 'R-6909001', category: 'aircon', title: 'แอร์ไม่เย็น',
+      detail: '', status: 'in_progress', created_at: '2026-09-01 10:30:00' },
+    { id: 'r2', ref: 'R-6908003', category: 'plumbing', title: 'ก๊อกน้ำรั่ว',
+      detail: '', status: 'done', created_at: '2026-08-28 14:20:00' }
+  ]
+};
+
 const MOCK_ME = {
   user_id: 'U001',
   tenant_id: 'T001',
@@ -149,4 +158,22 @@ export function fetchInvoice(id) {
     });
   }
   return request(`/api/v1/me/invoices/${encodeURIComponent(id)}`);
+}
+
+/** Repair requests for the signed-in tenant's tenancy. */
+export function fetchRepairs() {
+  if (config.mock) return Promise.resolve(MOCK_REPAIRS);
+  return request('/api/v1/me/repairs');
+}
+
+export function fetchRepair(id) {
+  if (config.mock) {
+    return Promise.resolve({ ...MOCK_REPAIRS.repairs.find((r) => r.id === id), events: [] });
+  }
+  return request(`/api/v1/me/repairs/${encodeURIComponent(id)}`);
+}
+
+export function createRepair(payload) {
+  if (config.mock) return Promise.resolve({ id: 'mock', ref: 'R-6909003', ...payload });
+  return request('/api/v1/me/repairs', { method: 'POST', body: payload });
 }

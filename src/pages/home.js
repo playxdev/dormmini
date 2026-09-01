@@ -11,7 +11,7 @@ import { navBar, bindNav } from './nav.js';
 
 const TILES = [
   { tone: 'blue', title: 'บิลค่าเช่า', subtitle: 'ดูประวัติใบเสร็จ', view: 'bills', icon: '<path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Zm2.5 5h7v2h-7V7Zm0 4h7v2h-7v-2Z"/>' },
-  { tone: 'orange', title: 'แจ้งซ่อม', subtitle: 'ติดตามสถานะ', icon: '<path d="M20 6a5 5 0 0 1-6.6 4.7L6 18l-2-2 7.3-7.4A5 5 0 0 1 16 2l-3 3 3 3 3-3c.6.6 1 1.5 1 2Z"/>' },
+  { tone: 'orange', title: 'แจ้งซ่อม', subtitle: 'ติดตามสถานะ', view: 'repairs', icon: '<path d="M20 6a5 5 0 0 1-6.6 4.7L6 18l-2-2 7.3-7.4A5 5 0 0 1 16 2l-3 3 3 3 3-3c.6.6 1 1.5 1 2Z"/>' },
   { tone: 'green', title: 'จดมิเตอร์', subtitle: 'น้ำ/ไฟ', icon: '<path d="M4 4h16v16H4V4Zm3 3v4h4V7H7Zm6 0v4h4V7h-4Zm-6 6v4h4v-4H7Zm6 0v4h4v-4h-4Z"/>' },
   { tone: 'red', title: 'ประกาศ', subtitle: 'ข่าวสารจากหอ', icon: '<path d="M3 10v4h3l6 4V6L6 10H3Zm14.5 2a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4Z"/>' },
   { tone: 'purple', title: 'เอกสาร', subtitle: 'สัญญา/ใบเสร็จ', icon: '<path d="M6 2h8l4 4v16H6V2Zm2.5 8h7v2h-7v-2Zm0 4h7v2h-7v-2Z"/>' },

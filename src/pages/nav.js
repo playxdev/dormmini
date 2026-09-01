@@ -16,7 +16,7 @@ const ICONS = {
 const ITEMS = [
   { key: 'home', title: 'หน้าหลัก', view: 'home' },
   { key: 'bill', title: 'บิล', view: 'bills' },
-  { key: 'repair', title: 'แจ้งซ่อม' },
+  { key: 'repair', title: 'แจ้งซ่อม', view: 'repairs' },
   { key: 'menu', title: 'เมนู' }
 ];
 

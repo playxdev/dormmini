@@ -38,6 +38,14 @@ export function shortDate(value) {
   return `${day} ${THAI_MONTHS_SHORT[month - 1]} ${year + 543}`;
 }
 
+/** "2026-09-01 17:09:58" -> "1 ก.ย. 2569 17:09" */
+export function dateTime(value) {
+  const raw = String(value ?? '');
+  const time = raw.slice(11, 16);
+  const date = shortDate(raw);
+  return date && time ? `${date} ${time}` : date;
+}
+
 /** Period after "2025-09" -> "ตุลาคม 2568" */
 export function nextPeriod(value) {
   const [year, month] = String(value ?? '').split('-').map(Number);
