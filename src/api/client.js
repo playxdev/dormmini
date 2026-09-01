@@ -96,10 +96,10 @@ const MOCK_INVOICES = {
 
 const MOCK_REPAIRS = {
   repairs: [
-    { id: 'r1', ref: 'R-6909001', category: 'aircon', title: 'แอร์ไม่เย็น',
-      detail: '', status: 'in_progress', created_at: '2026-09-01 10:30:00' },
-    { id: 'r2', ref: 'R-6908003', category: 'plumbing', title: 'ก๊อกน้ำรั่ว',
-      detail: '', status: 'done', created_at: '2026-08-28 14:20:00' }
+    { id: 'r1', title: 'แอร์ไม่เย็น', detail: '', priority: 'normal',
+      status: 'in_progress', created_at: '2026-09-01 10:30:00' },
+    { id: 'r2', title: 'ก๊อกน้ำรั่ว', detail: '', priority: 'urgent',
+      status: 'done', created_at: '2026-08-28 14:20:00' }
   ]
 };
 
@@ -174,6 +174,6 @@ export function fetchRepair(id) {
 }
 
 export function createRepair(payload) {
-  if (config.mock) return Promise.resolve({ id: 'mock', ref: 'R-6909003', ...payload });
+  if (config.mock) return Promise.resolve({ id: 'mock', status: 'open', ...payload });
   return request('/api/v1/me/repairs', { method: 'POST', body: payload });
 }

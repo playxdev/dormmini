@@ -7,6 +7,7 @@ import { dateTime } from '../lib/format.js';
 import { navBar, bindNav } from './nav.js';
 
 const STATUS = {
+  open: { label: 'รอดำเนินการ', tone: 'wait' },
   pending: { label: 'รอดำเนินการ', tone: 'wait' },
   in_progress: { label: 'กำลังดำเนินการ', tone: 'warn' },
   done: { label: 'เสร็จสิ้น', tone: 'ok' },
@@ -14,12 +15,10 @@ const STATUS = {
 };
 
 // Mirrors the set the API accepts; anything else is rejected there.
-const CATEGORIES = [
-  { value: 'electrical', label: 'ไฟฟ้า' },
-  { value: 'plumbing', label: 'ประปา' },
-  { value: 'aircon', label: 'เครื่องปรับอากาศ' },
-  { value: 'furniture', label: 'เฟอร์นิเจอร์' },
-  { value: 'other', label: 'อื่น ๆ' }
+const PRIORITIES = [
+  { value: 'normal', label: 'ปกติ' },
+  { value: 'urgent', label: 'ด่วน — ใช้ห้องไม่ได้' },
+  { value: 'low', label: 'ไม่เร่งด่วน' }
 ];
 
 const OPEN_STATUSES = new Set(['pending', 'in_progress']);
@@ -39,10 +38,10 @@ function repairCard(repair) {
   return `
     <button class="bill-card" type="button" data-nav="repair" data-nav-param="${escapeHtml(repair.id)}">
       <span class="bill-card__head">
-        <strong class="repair-card__ref">#${escapeHtml(repair.ref)}</strong>
+        <strong class="repair-card__ref">${escapeHtml(repair.title)}</strong>
         ${statusChip(repair.status)}
       </span>
-      <span class="repair-card__title">${escapeHtml(repair.title)}</span>
+      <span class="repair-card__title">${(PRIORITIES.find((p) => p.value === repair.priority) ?? PRIORITIES[0]).label}</span>
       <span class="bill-card__meta">แจ้งเมื่อ ${dateTime(repair.created_at)}</span>
     </button>`;
 }
@@ -95,7 +94,7 @@ export function renderRepairs(root, { repairs }, navigate) {
 }
 
 export function renderRepairDetail(root, repair, navigate) {
-  const category = CATEGORIES.find((c) => c.value === repair.category)?.label ?? 'อื่น ๆ';
+  const priority = PRIORITIES.find((p) => p.value === repair.priority)?.label ?? 'ปกติ';
 
   const event = (e) => `
     <li class="timeline__item">
@@ -114,11 +113,10 @@ export function renderRepairDetail(root, repair, navigate) {
       <main class="sub-body">
         <section class="card">
           <div class="card__head">
-            <strong>#${escapeHtml(repair.ref)}</strong>
+            <strong>${escapeHtml(repair.title)}</strong>
             ${statusChip(repair.status)}
           </div>
-          <p class="repair-detail__title">${escapeHtml(repair.title)}</p>
-          <p class="card__label">${escapeHtml(category)}</p>
+          <p class="card__label">ความเร่งด่วน: ${escapeHtml(priority)}</p>
           ${repair.detail ? `<p class="repair-detail__body">${escapeHtml(repair.detail)}</p>` : ''}
           <p class="card__meta">แจ้งเมื่อ ${dateTime(repair.created_at)}</p>
         </section>
@@ -156,9 +154,9 @@ export function renderRepairForm(root, navigate, onSubmit) {
       <main class="sub-body">
         <form class="form" id="repair-form" novalidate>
           <label class="field">
-            <span class="field__label">ประเภท</span>
-            <select class="field__control" name="category" required>
-              ${CATEGORIES.map((c) => `<option value="${c.value}">${c.label}</option>`).join('')}
+            <span class="field__label">ความเร่งด่วน</span>
+            <select class="field__control" name="priority" required>
+              ${PRIORITIES.map((p) => `<option value="${p.value}">${p.label}</option>`).join('')}
             </select>
           </label>
 
@@ -206,9 +204,9 @@ export function renderRepairForm(root, navigate, onSubmit) {
 
     try {
       await onSubmit({
-        category: String(data.get('category') ?? 'other'),
         title,
-        detail: String(data.get('detail') ?? '').trim()
+        detail: String(data.get('detail') ?? '').trim(),
+        priority: String(data.get('priority') ?? 'normal')
       });
     } catch {
       error.textContent = 'ส่งเรื่องไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
