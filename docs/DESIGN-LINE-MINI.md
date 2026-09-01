@@ -117,7 +117,7 @@ Developing
 Each environment has its **own** LIFF ID. They are not interchangeable.
 
 ``` text
-Developing   2011361700-JZIB29PM
+Developing   2011361700-JZlB29PM
 Review       2011361701-CK48xQPp
 Published    2011361702-IZrdVpdn
 ```
@@ -131,7 +131,7 @@ https://miniapp.line.me/<LIFF_ID>
 The LIFF ID must be stored in application configuration:
 
 ``` text
-VITE_LINE_LIFF_ID=2011361700-JZIB29PM
+VITE_LINE_LIFF_ID=2011361700-JZlB29PM
 ```
 
 A LIFF ID is public. It is inlined into the browser bundle by design and
