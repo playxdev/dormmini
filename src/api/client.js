@@ -223,3 +223,32 @@ export function claimInvite(code) {
   if (config.mock) return Promise.resolve({ status: 'claimed' });
   return request(`/api/v1/invites/${encodeURIComponent(code)}/claim`, { method: 'POST' });
 }
+
+/** PromptPay payloads for one invoice: the full amount, and an open one. */
+export function fetchPaymentInfo(invoiceID) {
+  if (config.mock) {
+    return Promise.resolve({
+      invoice_id: invoiceID,
+      due_satang: 525000,
+      promptpay_name: 'OSCAR APARTMENT',
+      payload_full: '00020101021229370016A000000677010111011300668123456785802TH530376454075250.0063045311',
+      payload_open: '00020101021129370016A000000677010111011300668123456785802TH530376463045D82',
+      accepts_partial: true
+    });
+  }
+  return request(`/api/v1/me/invoices/${encodeURIComponent(invoiceID)}/payment`);
+}
+
+/**
+ * Tells the server what the tenant says they transferred.
+ *
+ * A claim, not a fact: the money went to the owner's bank and nothing here can
+ * observe it. The owner verifies before it counts against the invoice.
+ */
+export function reportPayment(invoiceID, payload) {
+  if (config.mock) return Promise.resolve({ status: 'pending_verification' });
+  return request(`/api/v1/me/invoices/${encodeURIComponent(invoiceID)}/payments`, {
+    method: 'POST',
+    body: payload
+  });
+}

@@ -36,7 +36,7 @@ Open from LINE → LIFF init → LINE login → backend auth
 | --- | --- |
 | My Room | done |
 | Invoice | done — balance on the home screen, list and detail |
-| Payment | blocked on how rent is collected |
+| Payment | done — PromptPay QR, full or open amount, report a transfer |
 | Water/Electricity | blocked on storage for meter photos |
 | Repair Request | done — list, detail, and filing one |
 | Announcements | not started |

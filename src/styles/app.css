@@ -680,3 +680,38 @@ textarea.field__control { min-height: 96px; resize: vertical; }
 
 .slide.is-complete .slide__track { background: var(--green); }
 .slide.is-complete .slide__knob { background: #fff; color: var(--green); }
+
+/* ---------- payment ---------- */
+
+.pay-card { text-align: center; }
+.pay-card .card__label { text-align: center; }
+.pay-card .card__amount { margin-bottom: 14px; }
+
+.tabs--inline {
+  margin: 0 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.tabs--inline .tabs__tab { min-height: 40px; font-size: 13.5px; border-bottom: 0; }
+.tabs--inline .tabs__tab.is-active { background: var(--surface); color: var(--green); }
+
+.qr {
+  width: 100%;
+  max-width: 240px;
+  margin: 0 auto;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.qr svg { width: 100%; height: auto; display: block; }
+
+.qr__hint { margin: 12px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.qr__payee { margin: 4px 0 0; font-size: 13.5px; font-weight: 700; letter-spacing: .3px; }
+
+.line-item--pending span:last-child { color: var(--orange); }
+.line-item--pending span:first-child { color: var(--orange); }

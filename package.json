@@ -13,7 +13,8 @@
     "deploy:preview": "npm run build && wrangler pages deploy --branch preview"
   },
   "dependencies": {
-    "@line/liff": "^2.26.0"
+    "@line/liff": "^2.26.0",
+    "@paulmillr/qr": "^0.3.0"
   },
   "devDependencies": {
     "vite": "^7.1.3",

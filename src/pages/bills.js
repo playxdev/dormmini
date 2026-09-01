@@ -95,10 +95,13 @@ export function renderBillDetail(root, invoice, navigate) {
       <span>${baht(item.amount_satang)} บาท</span>
     </li>`;
 
+  // An unverified notice is shown but not subtracted: the owner has not
+  // confirmed the transfer arrived, and the balance must agree with what they
+  // see.
   const paymentRow = (payment) => `
-    <li class="line-item line-item--paid">
-      <span>ชำระแล้ว ${shortDate(payment.paid_at)}</span>
-      <span>-${baht(payment.amount_satang)} บาท</span>
+    <li class="line-item ${payment.verified ? 'line-item--paid' : 'line-item--pending'}">
+      <span>${payment.verified ? 'ชำระแล้ว' : 'แจ้งชำระ รอตรวจสอบ'} ${shortDate(payment.paid_at)}</span>
+      <span>${payment.verified ? '-' : ''}${baht(payment.amount_satang)} บาท</span>
     </li>`;
 
   root.innerHTML = `
@@ -130,8 +133,9 @@ export function renderBillDetail(root, invoice, navigate) {
             ${invoice.payments.map(paymentRow).join('')}
           </ul>
 
-          <button class="btn btn--primary" type="button" disabled aria-disabled="true">ชำระเงิน</button>
-          <p class="card__note">การชำระเงินออนไลน์กำลังจะเปิดให้บริการ</p>
+          ${outstanding ? `
+            <button class="btn btn--primary" type="button"
+              data-nav="pay" data-nav-param="${escapeHtml(invoice.id)}">ชำระเงิน</button>` : ''}
         </section>
 
         <section class="card card--muted">

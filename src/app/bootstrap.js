@@ -11,6 +11,7 @@ import {
   authenticateWithLine, fetchMe, fetchInvoices, fetchInvoice,
   fetchRepairs, fetchRepair, createRepair,
   fetchInvite, claimInvite,
+  fetchPaymentInfo, reportPayment,
   AppError, ErrorCode
 } from '../api/client.js';
 import { setToken, setProfile, clearSession } from '../auth/session.js';
@@ -19,6 +20,7 @@ import { renderHome } from '../pages/home.js';
 import { renderBills, renderBillDetail } from '../pages/bills.js';
 import { renderRepairs, renderRepairDetail, renderRepairForm } from '../pages/repairs.js';
 import { renderUnlinked, renderInviteReview } from '../pages/onboarding.js';
+import { renderPayment } from '../pages/payment.js';
 
 const MESSAGES = {
   [ErrorCode.LIFF_INIT_FAILED]: {
@@ -201,6 +203,29 @@ function startRouter(root, session) {
     if (view === 'bill') {
       try {
         renderBillDetail(root, await fetchInvoice(param), navigate);
+      } catch (error) {
+        renderError(root, error, { retry: true });
+      }
+      return;
+    }
+
+    if (view === 'pay') {
+      renderLoading(root);
+      try {
+        const [invoice, info] = await Promise.all([
+          fetchInvoice(param),
+          fetchPaymentInfo(param)
+        ]);
+        renderPayment(root, { invoice, info }, {
+          onBack: () => navigate('bill', param),
+          onReport: async (payload) => {
+            await reportPayment(param, payload);
+            // Back to the invoice, where the pending notice now appears. The
+            // balance deliberately does not move: it is not paid until the
+            // owner verifies it.
+            await navigate('bill', param);
+          }
+        });
       } catch (error) {
         renderError(root, error, { retry: true });
       }
