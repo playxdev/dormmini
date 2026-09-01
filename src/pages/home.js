@@ -1,25 +1,21 @@
 /**
  * Authenticated home screen.
  *
- * Milestone 1 renders identity, property and room only. The feature tiles and
- * bottom navigation are the Phase 2 shell and are intentionally inert - they
- * exist so Phase 2 screens drop into a finished layout without a rewrite.
+ * Shows identity, the outstanding balance and the feature grid. Tiles whose
+ * screens are not built yet render disabled rather than hidden, so the layout
+ * keeps the shape of the finished design.
  */
 
+import { baht, shortDate } from '../lib/format.js';
+import { navBar, bindNav } from './nav.js';
+
 const TILES = [
-  { tone: 'blue', title: 'บิลค่าเช่า', subtitle: 'ดูประวัติใบเสร็จ', icon: '<path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Zm2.5 5h7v2h-7V7Zm0 4h7v2h-7v-2Z"/>' },
+  { tone: 'blue', title: 'บิลค่าเช่า', subtitle: 'ดูประวัติใบเสร็จ', view: 'bills', icon: '<path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Zm2.5 5h7v2h-7V7Zm0 4h7v2h-7v-2Z"/>' },
   { tone: 'orange', title: 'แจ้งซ่อม', subtitle: 'ติดตามสถานะ', icon: '<path d="M20 6a5 5 0 0 1-6.6 4.7L6 18l-2-2 7.3-7.4A5 5 0 0 1 16 2l-3 3 3 3 3-3c.6.6 1 1.5 1 2Z"/>' },
   { tone: 'green', title: 'จดมิเตอร์', subtitle: 'น้ำ/ไฟ', icon: '<path d="M4 4h16v16H4V4Zm3 3v4h4V7H7Zm6 0v4h4V7h-4Zm-6 6v4h4v-4H7Zm6 0v4h4v-4h-4Z"/>' },
   { tone: 'red', title: 'ประกาศ', subtitle: 'ข่าวสารจากหอ', icon: '<path d="M3 10v4h3l6 4V6L6 10H3Zm14.5 2a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4Z"/>' },
   { tone: 'purple', title: 'เอกสาร', subtitle: 'สัญญา/ใบเสร็จ', icon: '<path d="M6 2h8l4 4v16H6V2Zm2.5 8h7v2h-7v-2Zm0 4h7v2h-7v-2Z"/>' },
   { tone: 'green', title: 'ติดต่อเรา', subtitle: 'ผู้ดูแลหอ', icon: '<path d="M6.6 3h3l1.5 4-2 1.5a12 12 0 0 0 6.4 6.4l1.5-2 4 1.5v3c0 1-.8 1.6-1.8 1.5C11.4 18.3 5.7 12.6 5.1 4.8 5 3.8 5.6 3 6.6 3Z"/>' }
-];
-
-const NAV = [
-  { title: 'หน้าหลัก', active: true, icon: '<path d="M12 3 3 10.2V21h6v-5.5h6V21h6V10.2L12 3Z"/>' },
-  { title: 'บิล', icon: '<path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Zm2.5 5h7v2h-7V7Zm0 4h7v2h-7v-2Z"/>' },
-  { title: 'แจ้งซ่อม', icon: '<path d="M20 6a5 5 0 0 1-6.6 4.7L6 18l-2-2 7.3-7.4A5 5 0 0 1 16 2l-3 3 3 3 3-3c.6.6 1 1.5 1 2Z"/>' },
-  { title: 'เมนู', icon: '<path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/>' }
 ];
 
 function escapeHtml(value) {
@@ -38,8 +34,10 @@ function avatar(profile) {
 }
 
 function tile(item) {
+  const enabled = Boolean(item.view);
   return `
-    <button class="tile" type="button" disabled aria-disabled="true">
+    <button class="tile" type="button"
+      ${enabled ? `data-nav="${item.view}"` : 'disabled aria-disabled="true"'}>
       <span class="tile__icon tile__icon--${item.tone}">
         <svg viewBox="0 0 24 24" aria-hidden="true">${item.icon}</svg>
       </span>
@@ -48,22 +46,44 @@ function tile(item) {
     </button>`;
 }
 
-function navItem(item) {
+/**
+ * The balance card only appears when something is owed. An empty card reading
+ * "0.00" would give a settled tenant a bill-shaped thing to worry about.
+ */
+function balanceCard(outstandingSatang, nextDueDate) {
+  if (!outstandingSatang || outstandingSatang <= 0) {
+    return `
+      <section class="balance balance--clear">
+        <p class="balance__label">ไม่มียอดค้างชำระ</p>
+        <p class="balance__note">ขอบคุณที่ชำระตรงเวลา</p>
+      </section>`;
+  }
+
   return `
-    <button class="nav__item${item.active ? ' is-active' : ''}" type="button" ${item.active ? '' : 'disabled'}>
-      <svg viewBox="0 0 24 24" aria-hidden="true">${item.icon}</svg>
-      <span>${item.title}</span>
-    </button>`;
+    <section class="balance">
+      <div class="balance__text">
+        <p class="balance__label">ยอดค้างชำระ</p>
+        <p class="balance__amount">${baht(outstandingSatang)} <span>บาท</span></p>
+        ${nextDueDate ? `<p class="balance__meta">กำหนดชำระ ${shortDate(nextDueDate)}</p>` : ''}
+      </div>
+      <button class="btn btn--primary balance__action" type="button" data-nav="bills">ดูบิล</button>
+    </section>`;
 }
 
 /**
  * @param {HTMLElement} root
- * @param {{profile: {displayName: string, pictureUrl?: string},
- *          me: {property_name?: string, room_id?: string}}} data
+ * @param {{profile: object, me: object, billing: object}} data
+ * @param {(view: string, param?: string) => void} navigate
  */
-export function renderHome(root, { profile, me }) {
-  const propertyName = me.property_name ?? me.property?.name ?? '';
-  const roomId = me.room_id ?? me.room?.id ?? '';
+export function renderHome(root, { profile, me, billing }, navigate) {
+  const propertyName = me.property_name ?? '';
+  const roomId = me.room_id ?? '';
+
+  // The earliest unpaid invoice is the one whose due date the tenant needs.
+  const nextDue = (billing?.invoices ?? [])
+    .filter((i) => i.due_satang > 0)
+    .map((i) => i.due_date)
+    .sort()[0];
 
   root.innerHTML = `
     <div class="screen screen--home">
@@ -81,21 +101,12 @@ export function renderHome(root, { profile, me }) {
       </header>
 
       <main class="home-body">
-        <p class="phase-note">ฟีเจอร์ทั้งหมดกำลังจะมาเร็ว ๆ นี้</p>
+        ${balanceCard(billing?.outstanding_satang, nextDue)}
         <div class="tile-grid">${TILES.map(tile).join('')}</div>
       </main>
 
-      <nav class="nav" aria-label="เมนูหลัก">
-        ${navItem(NAV[0])}
-        ${navItem(NAV[1])}
-        <button class="nav__fab" type="button" disabled aria-disabled="true">
-          <span class="nav__fab-circle">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8v8H3V3Zm2 2v4h4V5H5Zm8-2h8v8h-8V3Zm2 2v4h4V5h-4ZM3 13h8v8H3v-8Zm2 2v4h4v-4H5Zm8-2h3v3h-3v-3Zm5 0h3v3h-3v-3Zm-5 5h3v3h-3v-3Zm5 0h3v3h-3v-3Z"/></svg>
-          </span>
-          <span>สแกน/จ่าย</span>
-        </button>
-        ${navItem(NAV[2])}
-        ${navItem(NAV[3])}
-      </nav>
+      ${navBar('home')}
     </div>`;
+
+  bindNav(root, navigate);
 }

@@ -331,3 +331,176 @@ svg { width: 100%; height: 100%; fill: currentColor; display: block; }
   border: 3px solid var(--surface);
   box-shadow: 0 4px 12px rgba(0, 146, 69, .32);
 }
+
+/* ---------- balance card ---------- */
+
+.balance {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+.balance__text { flex: 1; min-width: 0; }
+.balance__label { margin: 0; color: var(--muted); font-size: 13px; }
+
+.balance__amount {
+  margin: 2px 0 0;
+  color: var(--danger);
+  font-size: 27px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.balance__amount span { font-size: 14px; font-weight: 600; color: var(--text); }
+.balance__meta { margin: 4px 0 0; color: var(--muted); font-size: 12.5px; }
+.balance__action { width: auto; padding: 0 22px; }
+
+.balance--clear { flex-direction: column; align-items: flex-start; gap: 2px; }
+.balance--clear .balance__label { color: var(--green); font-weight: 700; font-size: 15px; }
+.balance__note { margin: 0; color: var(--muted); font-size: 13px; }
+
+/* ---------- sub screens ---------- */
+
+.screen--sub { background: var(--bg); }
+
+.sub-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.sub-header h1 { margin: 0; font-size: 16px; font-weight: 700; }
+
+.sub-header__back {
+  position: absolute;
+  left: 8px;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 14px;
+  color: var(--text);
+}
+
+.sub-body {
+  flex: 1;
+  padding: 16px;
+  padding-bottom: calc(var(--nav-height) + 28px);
+}
+
+/* ---------- tabs ---------- */
+
+.tabs {
+  display: flex;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.tabs__tab {
+  flex: 1;
+  min-height: var(--tap);
+  color: var(--muted);
+  font-size: 14.5px;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+}
+
+.tabs__tab.is-active { color: var(--green); border-bottom-color: var(--green); }
+
+/* ---------- chips ---------- */
+
+.chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.chip--danger { background: #fdecee; color: var(--danger); }
+.chip--ok { background: #e8f5ec; color: var(--green); }
+
+/* ---------- invoice list ---------- */
+
+.bill-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+
+.bill-card__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bill-card__head strong { font-size: 15px; font-weight: 700; }
+.bill-card__amount { font-size: 19px; font-weight: 800; }
+.bill-card__amount.is-due { color: var(--danger); }
+.bill-card__meta { color: var(--muted); font-size: 12.5px; }
+
+.empty {
+  margin: 32px 0;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ---------- invoice detail ---------- */
+
+.card {
+  margin-bottom: 14px;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+.card--muted { box-shadow: none; border: 1px solid var(--line); }
+.card__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
+.card__head strong { font-size: 17px; font-weight: 800; }
+.card__label { margin: 0; color: var(--muted); font-size: 13px; }
+
+.card__amount {
+  margin: 2px 0 0;
+  color: var(--text);
+  font-size: 29px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.card__amount.is-due { color: var(--danger); }
+.card__meta { margin: 4px 0 14px; color: var(--muted); font-size: 12.5px; }
+.card__note { margin: 8px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
+.card__row { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.card__row span { color: var(--muted); font-size: 13px; }
+
+.line-items {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.line-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  font-size: 14.5px;
+}
+
+.line-item span:first-child { color: var(--muted); }
+.line-item span:last-child { font-weight: 600; }
+.line-item--paid span:last-child { color: var(--green); }

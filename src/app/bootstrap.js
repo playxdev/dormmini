@@ -7,10 +7,11 @@
 
 import { config, assertConfig } from './config.js';
 import { initLine, isLoggedIn, login, getIdToken, getLineProfile, closeWindow } from '../auth/line.js';
-import { authenticateWithLine, fetchMe, AppError, ErrorCode } from '../api/client.js';
+import { authenticateWithLine, fetchMe, fetchInvoices, fetchInvoice, AppError, ErrorCode } from '../api/client.js';
 import { setToken, setProfile, clearSession } from '../auth/session.js';
 import { renderLogin } from '../pages/login.js';
 import { renderHome } from '../pages/home.js';
+import { renderBills, renderBillDetail } from '../pages/bills.js';
 
 const MESSAGES = {
   [ErrorCode.LIFF_INIT_FAILED]: {
@@ -132,7 +133,16 @@ export async function start(root) {
     setProfile(profile);
 
     const me = await fetchMe();
-    renderHome(root, { profile, me });
+
+    // Billing is fetched alongside the identity because the home screen leads
+    // with the outstanding balance. A failure here must not blank the screen:
+    // knowing your room is still worth showing when the balance is unavailable.
+    const billing = await fetchInvoices().catch((error) => {
+      console.warn('[dorm.place] billing unavailable', error);
+      return null;
+    });
+
+    startRouter(root, { profile, me, billing });
   } catch (error) {
     const code = error instanceof AppError ? error.code : null;
     renderError(root, error, {
@@ -140,4 +150,43 @@ export async function start(root) {
       relogin: code === ErrorCode.UNAUTHORIZED
     });
   }
+}
+
+/**
+ * Screen routing.
+ *
+ * The MINI App is a handful of screens reached by tapping, and LIFF owns the
+ * URL, so a history-based router would fight it. A view name plus a parameter
+ * is enough.
+ */
+function startRouter(root, session) {
+  const navigate = async (view, param) => {
+    if (view === 'home') {
+      renderHome(root, session, navigate);
+      return;
+    }
+
+    if (view === 'bills') {
+      // Re-fetched on entry rather than reusing the copy taken at startup, so
+      // an invoice issued while the app was open is not missed.
+      try {
+        const billing = await fetchInvoices();
+        session.billing = billing;
+        renderBills(root, billing, navigate);
+      } catch (error) {
+        renderError(root, error, { retry: true });
+      }
+      return;
+    }
+
+    if (view === 'bill') {
+      try {
+        renderBillDetail(root, await fetchInvoice(param), navigate);
+      } catch (error) {
+        renderError(root, error, { retry: true });
+      }
+    }
+  };
+
+  navigate('home');
 }

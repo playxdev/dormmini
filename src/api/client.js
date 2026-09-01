@@ -78,6 +78,22 @@ async function request(path, { method = 'GET', body, auth = true } = {}) {
 
 const MOCK_AUTH = { token: 'mock-session-token' };
 
+const MOCK_INVOICES = {
+  outstanding_satang: 525000,
+  invoices: [
+    {
+      id: 'inv_2025_09', period: '2025-09', due_date: '2025-09-05',
+      status: 'open', total_satang: 525000, paid_satang: 0, due_satang: 525000,
+      property_name: 'Oscar Apartment', room_code: 'A-203'
+    },
+    {
+      id: 'inv_2025_08', period: '2025-08', due_date: '2025-08-05',
+      status: 'open', total_satang: 517000, paid_satang: 517000, due_satang: 0,
+      property_name: 'Oscar Apartment', room_code: 'A-203'
+    }
+  ]
+};
+
 const MOCK_ME = {
   user_id: 'U001',
   tenant_id: 'T001',
@@ -106,4 +122,31 @@ export function authenticateWithLine(idToken) {
 export function fetchMe() {
   if (config.mock) return Promise.resolve(MOCK_ME);
   return request('/api/v1/me');
+}
+
+/**
+ * Invoices for the signed-in tenant's tenancy.
+ *
+ * Amounts arrive as integer satang; `src/lib/format.js` turns them into the
+ * baht string the tenant sees.
+ */
+export function fetchInvoices() {
+  if (config.mock) return Promise.resolve(MOCK_INVOICES);
+  return request('/api/v1/me/invoices');
+}
+
+export function fetchInvoice(id) {
+  if (config.mock) {
+    const invoice = MOCK_INVOICES.invoices.find((i) => i.id === id);
+    return Promise.resolve({
+      ...invoice,
+      items: [
+        { kind: 'rent', description: 'ค่าเช่า', amount_satang: 450000 },
+        { kind: 'water', description: 'ค่าน้ำ', amount_satang: 30000 },
+        { kind: 'electricity', description: 'ค่าไฟ', amount_satang: 45000 }
+      ],
+      payments: []
+    });
+  }
+  return request(`/api/v1/me/invoices/${encodeURIComponent(id)}`);
 }

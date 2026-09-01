@@ -17,11 +17,17 @@ Open from LINE → LIFF init → LINE login → backend auth
               → resolve tenant/property/room → home screen
 ```
 
-The home screen renders the authenticated identity, property and room. Its
-feature tiles and bottom navigation are the Phase 2 shell and are deliberately
-inert — they exist so Phase 2 screens drop into a finished layout without a
-rewrite. Payment, invoices, meter readings, repair requests and messaging are
-not implemented.
+**Phase 2 — tenant features.** In progress, following §10's order. `My Room`
+and `Invoice` are done: the home screen leads with the outstanding balance, and
+the bill screens list invoices and break one down into line items and payments.
+
+Payment, meter readings, repair requests, announcements and messaging are not
+implemented; their tiles render disabled so the layout keeps the shape of the
+finished design.
+
+Amounts cross the API as integer satang and dates in the Gregorian calendar.
+`src/lib/format.js` is the only place either becomes what a Thai tenant reads —
+baht with two decimals, and Buddhist-era years.
 
 ## Stack
 
@@ -191,9 +197,13 @@ src/
 │   └── session.js     backend session token
 ├── api/
 │   └── client.js      HTTPS client, typed AppError codes
+├── lib/
+│   └── format.js      money and Thai date formatting
 ├── pages/
 │   ├── login.js       unauthenticated screen
-│   └── home.js        authenticated screen
+│   ├── home.js        identity, balance, feature grid
+│   ├── bills.js       invoice list and detail
+│   └── nav.js         shared bottom navigation
 └── styles/
     └── app.css        design tokens and screen styles
 
