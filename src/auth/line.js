@@ -67,6 +67,31 @@ export async function getLineProfile() {
   }
 }
 
+/**
+ * Whether the 2D code reader can be used here.
+ *
+ * liff.scanCodeV2() needs iOS 14.3+, and inside the LINE client it works only
+ * when the LIFF size is Full. Rather than predict the platform, ask LIFF —
+ * it knows what this environment supports.
+ */
+export function canScanCode() {
+  if (config.mock) return true;
+  return initialized && typeof liff.scanCodeV2 === 'function' && liff.isApiAvailable('scanCodeV2');
+}
+
+/**
+ * Opens the scanner and resolves with the scanned string, or null if the user
+ * closed it without scanning.
+ *
+ * Throws only when the scanner could not open at all — most often because
+ * "Scan QR" is not enabled for the LIFF app in the LINE Developers Console.
+ */
+export async function scanCode() {
+  if (config.mock) return 'K7M9P4QX';
+  const result = await liff.scanCodeV2();
+  return result?.value ?? null;
+}
+
 export function closeWindow() {
   if (config.mock) return;
   if (liff.isInClient()) liff.closeWindow();

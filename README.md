@@ -44,8 +44,15 @@ Open from LINE → LIFF init → LINE login → backend auth
 Tiles for unbuilt screens render disabled, so the layout keeps the shape of the
 finished design.
 
-**Onboarding** (§22) is built on the API side — reviewing an invite and
-confirming it — but the scan and confirm screens are not in the app yet.
+**Onboarding** (§22) is complete: an unlinked tenant can scan the QR the owner
+issues, or type the code, review the terms, and slide to confirm. The same code
+also arrives as `?invite=CODE` on the permanent link, for tenants who cannot
+scan.
+
+`liff.scanCodeV2()` needs **Scan QR** enabled for the LIFF app in the LINE
+Developers Console, and on iOS works only when the LIFF size is `Full`. The app
+asks LIFF whether the scanner is available rather than guessing, and falls back
+to code entry when it is not.
 
 Amounts cross the API as integer satang and dates in the Gregorian calendar.
 `src/lib/format.js` is the only place either becomes what a Thai tenant reads —
@@ -69,7 +76,8 @@ npm run dev
 ### Running without LINE or a backend
 
 `VITE_MOCK=1` skips LIFF entirely and serves fixture data, so the UI can be
-worked on in a normal desktop browser:
+worked on in a normal desktop browser. Add `?unlinked=1` to reach the
+onboarding screens, and `?invite=CODE` to land straight on the review:
 
 ```bash
 VITE_MOCK=1 npm run dev

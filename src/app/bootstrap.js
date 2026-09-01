@@ -6,10 +6,11 @@
  */
 
 import { config, assertConfig } from './config.js';
-import { initLine, isLoggedIn, login, getIdToken, getLineProfile, closeWindow } from '../auth/line.js';
+import { initLine, isLoggedIn, login, getIdToken, getLineProfile, closeWindow, scanCode } from '../auth/line.js';
 import {
   authenticateWithLine, fetchMe, fetchInvoices, fetchInvoice,
   fetchRepairs, fetchRepair, createRepair,
+  fetchInvite, claimInvite,
   AppError, ErrorCode
 } from '../api/client.js';
 import { setToken, setProfile, clearSession } from '../auth/session.js';
@@ -17,6 +18,7 @@ import { renderLogin } from '../pages/login.js';
 import { renderHome } from '../pages/home.js';
 import { renderBills, renderBillDetail } from '../pages/bills.js';
 import { renderRepairs, renderRepairDetail, renderRepairForm } from '../pages/repairs.js';
+import { renderUnlinked, renderInviteReview } from '../pages/onboarding.js';
 
 const MESSAGES = {
   [ErrorCode.LIFF_INIT_FAILED]: {
@@ -137,7 +139,19 @@ export async function start(root) {
     setToken(auth.token ?? auth.access_token);
     setProfile(profile);
 
-    const me = await fetchMe();
+    let me;
+    try {
+      me = await fetchMe();
+    } catch (error) {
+      // Authenticated but not linked to a room. That is not a failure — it is
+      // the state every new tenant starts in, and the app's job is to offer the
+      // way out of it rather than an error.
+      if (error instanceof AppError && error.code === ErrorCode.TENANT_NOT_FOUND) {
+        startOnboarding(root);
+        return;
+      }
+      throw error;
+    }
 
     // Billing is fetched alongside the identity because the home screen leads
     // with the outstanding balance. A failure here must not blank the screen:
@@ -222,4 +236,83 @@ function startRouter(root, session) {
   };
 
   navigate('home');
+}
+
+/**
+ * Reads an invite code the app was opened with.
+ *
+ * LIFF forwards query parameters from the permanent link through to the
+ * endpoint, so `miniapp.line.me/<liffId>?invite=CODE` arrives here intact. It
+ * is the entry path for tenants who cannot scan — old iOS, desktop, or simply
+ * not standing in front of the owner.
+ */
+function inviteCodeFromUrl() {
+  const code = new URLSearchParams(window.location.search).get('invite');
+  return code ? code.trim().toUpperCase() : null;
+}
+
+/**
+ * Screens for a tenant whose account is not linked to a room yet.
+ */
+function startOnboarding(root) {
+  const review = async (code) => {
+    renderLoading(root);
+    try {
+      const invite = await fetchInvite(code);
+      renderInviteReview(root, invite, {
+        onBack: () => startOnboarding(root),
+        onConfirm: async () => {
+          await claimInvite(code);
+          // Restart rather than render the home screen directly: the whole
+          // session context changed, and start() is the one place that builds
+          // it.
+          await start(root);
+        }
+      });
+    } catch (error) {
+      const code = error instanceof AppError ? error.code : null;
+      if (code === ErrorCode.TENANT_NOT_FOUND) {
+        // The invite is unknown, expired or revoked. All three are the same
+        // thing to the tenant: this code will not work, ask the owner.
+        renderUnlinkedWith(root, 'รหัสนี้ใช้ไม่ได้แล้ว กรุณาขอรหัสใหม่จากผู้ดูแลหอพัก');
+        return;
+      }
+      if (code === ErrorCode.INVITE_ALREADY_CLAIMED) {
+        renderUnlinkedWith(root, 'ห้องนี้ถูกผูกกับบัญชีอื่นไปแล้ว กรุณาติดต่อผู้ดูแลหอพัก');
+        return;
+      }
+      renderError(root, error, { retry: true });
+    }
+  };
+
+  const actions = {
+    onCode: review,
+    onScan: async () => {
+      try {
+        const value = await scanCode();
+        if (!value) return;
+        // The QR may hold a bare code or the permanent link containing one.
+        const match = String(value).match(/[A-Za-z0-9]{8}$/);
+        await review((match ? match[0] : value).toUpperCase());
+      } catch (error) {
+        // Almost always "Scan QR" not being enabled for the LIFF app.
+        console.error('[dorm.place] scan failed', error);
+        renderUnlinkedWith(root, 'เปิดกล้องไม่สำเร็จ กรุณากรอกรหัสแทน');
+      }
+    }
+  };
+
+  renderUnlinked(root, actions);
+
+  const code = inviteCodeFromUrl();
+  if (code) review(code);
+
+  function renderUnlinkedWith(target, message) {
+    renderUnlinked(target, actions);
+    const error = target.querySelector('#onboard-error');
+    if (error) {
+      error.textContent = message;
+      error.hidden = false;
+    }
+  }
 }

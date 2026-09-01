@@ -581,3 +581,102 @@ textarea.field__control { min-height: 96px; resize: vertical; }
 }
 
 .btn:disabled { opacity: .6; }
+
+/* ---------- onboarding ---------- */
+
+.screen--onboard {
+  background: var(--surface);
+  gap: 14px;
+  padding: 32px 24px calc(env(safe-area-inset-bottom) + 32px);
+}
+
+.onboard__mark {
+  width: 56px;
+  height: 56px;
+  padding: 14px;
+  border-radius: 50%;
+  background: #e8f5ec;
+  color: var(--green);
+}
+
+.onboard__mark--warn { background: #fff3e0; color: var(--orange); }
+
+.onboard__title { margin: 4px 0 0; font-size: 19px; font-weight: 800; }
+.onboard__detail { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+.onboard__code { width: 100%; max-width: 340px; margin-top: 8px; text-align: left; }
+.onboard__code .field { margin-bottom: 12px; }
+.onboard__help { margin: 4px 0 0; color: var(--muted); font-size: 12.5px; }
+
+.screen--onboard .btn { width: 100%; max-width: 340px; }
+.btn__icon { width: 20px; height: 20px; }
+
+.field__control--code {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+/* ---------- invite review ---------- */
+
+.review__lead { margin: 0 0 14px; color: var(--muted); font-size: 13.5px; text-align: center; }
+.review__building { margin: 2px 0 0; font-size: 21px; font-weight: 800; }
+.review__room { margin: 2px 0 0; color: var(--muted); font-size: 15px; }
+.review__room + .line-items { margin-top: 14px; }
+
+/* ---------- slide to confirm ---------- */
+
+.slide { --slide-progress: 0; margin: 18px 0 10px; }
+
+.slide__track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+/* The fill tracks the knob, so the gesture reads as progress rather than as
+   dragging an unrelated object across a bar. */
+.slide__track::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--green);
+  opacity: calc(var(--slide-progress) * 0.9);
+  transition: opacity .1s linear;
+}
+
+.slide__label {
+  position: relative;
+  color: var(--muted);
+  font-size: 14.5px;
+  font-weight: 700;
+  pointer-events: none;
+  opacity: calc(1 - var(--slide-progress));
+}
+
+.slide__knob {
+  position: absolute;
+  left: 4px;
+  width: 48px;
+  height: 48px;
+  padding: 12px;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 146, 69, .35);
+  touch-action: none;
+  transition: transform .2s ease;
+}
+
+.slide__knob.is-dragging { transition: none; }
+
+.slide.is-complete .slide__track { background: var(--green); }
+.slide.is-complete .slide__knob { background: #fff; color: var(--green); }

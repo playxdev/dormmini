@@ -22,6 +22,7 @@ export const ErrorCode = {
   BACKEND_UNAVAILABLE: 'BACKEND_UNAVAILABLE',
   UNAUTHORIZED: 'UNAUTHORIZED',
   TENANT_NOT_FOUND: 'TENANT_NOT_FOUND',
+  INVITE_ALREADY_CLAIMED: 'INVITE_ALREADY_CLAIMED',
   MISSING_ID_TOKEN: 'MISSING_ID_TOKEN',
   LIFF_INIT_FAILED: 'LIFF_INIT_FAILED',
   CONFIG_INVALID: 'CONFIG_INVALID'
@@ -63,6 +64,9 @@ async function request(path, { method = 'GET', body, auth = true } = {}) {
   if (response.status === 404) {
     throw new AppError(ErrorCode.TENANT_NOT_FOUND);
   }
+  if (response.status === 409) {
+    throw new AppError(ErrorCode.INVITE_ALREADY_CLAIMED);
+  }
   if (!response.ok) {
     throw new AppError(ErrorCode.BACKEND_UNAVAILABLE, `HTTP ${response.status}`);
   }
@@ -103,6 +107,18 @@ const MOCK_REPAIRS = {
   ]
 };
 
+const MOCK_INVITE = {
+  code: 'K7M9P4QX',
+  building_name: 'Oscar Apartment',
+  room_number: '609',
+  tenant_name: 'หอมนภา ทดสอบ',
+  rent_satang: 450000,
+  deposit_satang: 900000,
+  start_date: '2026-10-01',
+  already_claimed: false,
+  claimed_by_self: false
+};
+
 const MOCK_ME = {
   user_id: 'U001',
   tenant_id: 'T001',
@@ -129,7 +145,14 @@ export function authenticateWithLine(idToken) {
  * The server derives these from the session - the client never sends them.
  */
 export function fetchMe() {
-  if (config.mock) return Promise.resolve(MOCK_ME);
+  if (config.mock) {
+    // ?unlinked=1 in mock mode drives the onboarding screens, which are
+    // otherwise unreachable without a real unclaimed account.
+    if (new URLSearchParams(window.location.search).has('unlinked')) {
+      return Promise.reject(new AppError(ErrorCode.TENANT_NOT_FOUND));
+    }
+    return Promise.resolve(MOCK_ME);
+  }
   return request('/api/v1/me');
 }
 
@@ -176,4 +199,27 @@ export function fetchRepair(id) {
 export function createRepair(payload) {
   if (config.mock) return Promise.resolve({ id: 'mock', status: 'open', ...payload });
   return request('/api/v1/me/repairs', { method: 'POST', body: payload });
+}
+
+/**
+ * The terms behind an invite code, for the tenant to review before confirming.
+ *
+ * Requires a session: knowing who is looking is what separates "you already
+ * linked this room" from "someone else did".
+ */
+export function fetchInvite(code) {
+  if (config.mock) return Promise.resolve(MOCK_INVITE);
+  return request(`/api/v1/invites/${encodeURIComponent(code)}`);
+}
+
+/**
+ * Confirms an invite and binds the caller to the room.
+ *
+ * Carries no terms of its own — what was agreed is copied from the contract
+ * server-side, so a confirmation cannot be replayed with different numbers than
+ * the ones that were shown.
+ */
+export function claimInvite(code) {
+  if (config.mock) return Promise.resolve({ status: 'claimed' });
+  return request(`/api/v1/invites/${encodeURIComponent(code)}/claim`, { method: 'POST' });
 }
