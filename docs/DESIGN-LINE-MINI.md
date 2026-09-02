@@ -469,15 +469,14 @@ Not required yet:
 Home
 ├── My Room            done
 ├── Invoice            done
-├── Payment            blocked on how money is collected
+├── Payment            done (PromptPay QR + reported notice)
 ├── Water/Electricity  blocked on file storage for meter photos
 ├── Repair Request     done
 └── Announcements      not started
 ```
 
-Payment and meter readings are blocked on decisions rather than on work:
-whether rent is collected through a gateway or by transfer and slip, and where
-meter photos are stored.
+Meter readings remain blocked on a decision rather than on work: where the
+photo of the meter is stored.
 
 ### Phase 3 --- LINE Messaging
 
@@ -517,6 +516,8 @@ POST /api/v1/auth/line              { id_token } -> { token, expires_at }
 GET  /api/v1/me                     identity, building, room
 GET  /api/v1/me/invoices            list + outstanding total
 GET  /api/v1/me/invoices/{id}       items and payments
+GET  /api/v1/me/invoices/{id}/payment   PromptPay payloads, full and open
+POST /api/v1/me/invoices/{id}/payments  report a transfer the owner will verify
 GET  /api/v1/me/repairs             list
 POST /api/v1/me/repairs             file one
 GET  /api/v1/me/repairs/{id}        one
@@ -545,6 +546,13 @@ them would confirm that another tenant's record exists.
 
 **Only verified payments count as paid.** A slip the tenant submitted but the
 owner has not accepted must not make an invoice look settled.
+
+This rule binds the backoffice too. `dormplace` tracks `invoices.paid_total`
+and used to insert owner-recorded payments on the column default of
+`verified = 0`; `dormapi` sums only `verified = 1`. A payment the owner had
+recorded therefore left the tenant staring at an unchanged balance. Recording a
+payment in the backoffice now writes `verified = 1`, because the owner doing
+the recording *is* the verification.
 
 ## 12. Security
 
@@ -1081,19 +1089,49 @@ system issues an invite code + QR
 
 The tenant types nothing.
 
+### Where the QR comes from
+
+The backoffice issues it. `GET /contracts/:id/invite` in `dormplace` shows the
+current code for a contract, with buttons to issue, reissue and revoke.
+
+Reissuing revokes the previous code in the same write. A QR already shown or
+printed stops working rather than staying quietly valid beside its replacement
+— two live codes for one room is a state nobody can reason about later.
+
+Codes expire 30 days after issue. Long enough for a tenant who moves in on a
+Friday and gets to it the following weekend; short enough that an abandoned
+code does not stay usable for a year.
+
+Only an `active` contract can be given a code. A QR for an ended contract would
+bind a tenant to a room they have left.
+
 ### The QR carries only a code
 
 ``` text
-✅  K7M9P4QX
+✅  https://miniapp.line.me/<LIFF_ID>?invite=K7M9P4QX
 ❌  {"name":"...","room":"609","rent":450000}
 ```
 
 Encoding the terms would hand them to anyone who photographs the code, and
-could never be revoked. The code is opaque; the app fetches the terms from the
-backend, which can expire or revoke it at any time.
+could never be revoked. What the QR holds is opaque; the app fetches the terms
+from the backend, which can expire or revoke the code at any time.
 
-For the same reason the QR is shown **on the owner's screen at handover**, not
-printed on a contract that gets photocopied.
+The QR encodes the permanent link rather than the bare code so that any camera
+opens the MINI App. Requiring the tenant to already be inside the app before
+scanning would make the QR useless in the one moment it is most wanted — the
+tenant standing at the door with the sheet in their hand.
+
+### The printed sheet
+
+`/contracts/:id/invite/print` produces an A5 sheet: the QR, the code in large
+type, and the four steps in Thai.
+
+This is a deliberate softening of an earlier rule that the QR should live only
+on the owner's screen. That rule protected the *terms*, and the terms are not
+in the QR — a photographed sheet yields a code that is single use, expiring and
+revocable. What it does hand over is the chance to claim the room before the
+real tenant does, so the sheet is a handover document, not a notice to pin up.
+Suspected exposure is answered by reissuing, which invalidates it.
 
 ### Code alphabet
 
@@ -1150,3 +1188,96 @@ A prompt on the home screen can ask again later.
 
 - **Scan QR** must be enabled for the LIFF app in the LINE Developers Console.
 - On iOS, `liff.scanCodeV2()` works only when the LIFF size is `Full`.
+
+## 23. Payment
+
+### The money does not pass through this system
+
+The tenant transfers to the owner's bank account. Nothing here observes it. Two
+things follow, and every screen is shaped by them.
+
+**The QR is a payment instruction, not a transaction.** It is a PromptPay
+EMVCo payload built from the owner's PromptPay ID. Scanning it opens the
+tenant's banking app; what happens next is between the tenant and their bank.
+
+**A balance can only move on the owner's word.** The tenant reports the
+transfer, the owner matches it against their statement, and only then does the
+invoice change.
+
+### Two payloads, because one cannot do both
+
+``` text
+payload_full   amount embedded      tap, confirm, cannot mistype
+payload_open   no amount            tenant types the amount
+```
+
+A payload with an amount in it cannot be paid in instalments — the bank fills
+the field and locks it. Dormitories that allow instalments need the open one.
+The screen defaults to the full amount, because most tenants pay in full and
+a typed amount is a chance to get it wrong.
+
+The distinction is in the payload itself: an open payload omits tag `54` and
+carries initiation method `11` (static), the full one `12` (dynamic).
+
+### The same generator in two languages
+
+`dormplace` builds payloads in TypeScript for its own invoice pages;
+`dormapi` builds them in Go for the MINI App. Two implementations of one
+byte-exact format is a standing risk — a divergence would surface as a bank app
+refusing to read the QR, in front of a tenant.
+
+So `dormapi`'s tests assert byte equality against payloads generated by the
+TypeScript implementation, over eight cases spanning mobile numbers, national
+IDs, e-wallet IDs, with and without an amount. Conformance is proved, not
+assumed.
+
+### The verification loop
+
+``` text
+tenant                                       owner
+  │
+  │ scans the QR on the invoice
+  │ transfers in their banking app
+  │
+  │ reports: amount + reference
+  ▼
+POST /me/invoices/{id}/payments
+  │  writes verified = 0
+  │  invoice balance unchanged
+  │
+  │  MINI App shows the notice in orange:
+  │  "แจ้งชำระ รอตรวจสอบ", not subtracted
+  │                                    backoffice: /invoices lists every
+  │                                    unverified notice across all invoices
+  │                                             │
+  │                                    checks the bank statement
+  │                                             │
+  │                              ┌──────────────┴──────────────┐
+  │                        POST /payments/{id}/verify   POST /payments/{id}/delete
+  │                              │                             │
+  │                     verified = 1                     row removed
+  │                     paid_total moves                 paid_total untouched
+  ▼                              │                             │
+balance drops  ◄─────────────────┘                             │
+                                                    tenant may report again
+```
+
+Rejecting an unverified notice must not subtract from `paid_total`, because
+verifying it was what would have added it. Getting that backwards would credit
+a tenant for a payment the owner just said never arrived.
+
+### Retries are not second payments
+
+A tenant on a weak connection will tap twice. `payments.idempotency_key` is
+unique, the client sends a `crypto.randomUUID()` per submission, and a repeat
+returns `202` while inserting nothing.
+
+The column is nullable and SQLite permits many NULLs in a unique index, so rows
+the backoffice creates need no key.
+
+### Not yet built
+
+Slip images. The tenant reports an amount and a reference; the owner matches
+those against a statement by hand. Uploading the slip needs R2 and an S3-API
+client in Go, and was cut from the first slice deliberately — a slip is
+evidence for a human, and the human can already do the job without it.
