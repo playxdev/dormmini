@@ -12,6 +12,8 @@ import {
   fetchRepairs, fetchRepair, createRepair,
   fetchInvite, claimInvite,
   fetchPaymentInfo, reportPayment,
+  fetchAnnouncements, fetchAnnouncement, markAnnouncementRead,
+  fetchMeters,
   AppError, ErrorCode
 } from '../api/client.js';
 import { setToken, setProfile, clearSession } from '../auth/session.js';
@@ -21,6 +23,9 @@ import { renderBills, renderBillDetail } from '../pages/bills.js';
 import { renderRepairs, renderRepairDetail, renderRepairForm } from '../pages/repairs.js';
 import { renderUnlinked, renderInviteReview } from '../pages/onboarding.js';
 import { renderPayment } from '../pages/payment.js';
+import { renderAnnouncements, renderAnnouncement } from '../pages/announcements.js';
+import { renderMeters } from '../pages/meters.js';
+import { renderMenu } from '../pages/menu.js';
 
 const MESSAGES = {
   [ErrorCode.LIFF_INIT_FAILED]: {
@@ -155,15 +160,22 @@ export async function start(root) {
       throw error;
     }
 
-    // Billing is fetched alongside the identity because the home screen leads
-    // with the outstanding balance. A failure here must not blank the screen:
-    // knowing your room is still worth showing when the balance is unavailable.
-    const billing = await fetchInvoices().catch((error) => {
-      console.warn('[dorm.place] billing unavailable', error);
-      return null;
-    });
+    // Billing and the unread count are fetched alongside the identity because
+    // the home screen leads with both. A failure in either must not blank the
+    // screen: knowing your room is still worth showing when the balance or the
+    // notice board is unavailable.
+    const [billing, notices] = await Promise.all([
+      fetchInvoices().catch((error) => {
+        console.warn('[dorm.place] billing unavailable', error);
+        return null;
+      }),
+      fetchAnnouncements().catch((error) => {
+        console.warn('[dorm.place] announcements unavailable', error);
+        return null;
+      })
+    ]);
 
-    startRouter(root, { profile, me, billing });
+    startRouter(root, { profile, me, billing, unread: notices?.unread_count ?? 0 });
   } catch (error) {
     const code = error instanceof AppError ? error.code : null;
     renderError(root, error, {
@@ -184,6 +196,83 @@ function startRouter(root, session) {
   const navigate = async (view, param) => {
     if (view === 'home') {
       renderHome(root, session, navigate);
+      return;
+    }
+
+    if (view === 'menu') {
+      renderMenu(root, {
+        profile: session.profile,
+        me: session.me,
+        unread: session.unread,
+        version: config.version
+      }, navigate);
+      return;
+    }
+
+    if (view === 'announcements') {
+      renderLoading(root);
+      try {
+        const notices = await fetchAnnouncements();
+        session.unread = notices.unread_count ?? 0;
+        renderAnnouncements(root, notices, navigate);
+      } catch (error) {
+        renderError(root, error, { retry: true });
+      }
+      return;
+    }
+
+    if (view === 'announcement') {
+      renderLoading(root);
+      try {
+        const announcement = await fetchAnnouncement(param);
+        renderAnnouncement(root, announcement, navigate);
+
+        // Marking follows the render, and its failure is swallowed: the tenant
+        // has read the notice either way, and an unread badge that lingers is
+        // a smaller wrong than a notice that will not open.
+        if (!announcement.read) {
+          markAnnouncementRead(param)
+            .then(() => { session.unread = Math.max(0, (session.unread ?? 1) - 1); })
+            .catch((error) => console.warn('[dorm.place] mark read failed', error));
+        }
+      } catch (error) {
+        renderError(root, error, { retry: true });
+      }
+      return;
+    }
+
+    if (view === 'meters') {
+      renderLoading(root);
+      try {
+        renderMeters(root, await fetchMeters(), navigate);
+      } catch (error) {
+        renderError(root, error, { retry: true });
+      }
+      return;
+    }
+
+    if (view === 'scan') {
+      // A tenant who already has a room can still be handed a second one — a
+      // move, or a second rental. The onboarding screens own that flow, so
+      // this hands off to them rather than repeating the review and confirm.
+      try {
+        const value = await scanCode();
+        if (!value) return;
+        const match = String(value).match(/[A-Za-z0-9]{8}$/);
+        const code = (match ? match[0] : String(value)).toUpperCase();
+        renderLoading(root);
+        const invite = await fetchInvite(code);
+        renderInviteReview(root, invite, {
+          onBack: () => navigate('home'),
+          onConfirm: async () => {
+            await claimInvite(code);
+            await start(root);
+          }
+        });
+      } catch (error) {
+        console.error('[dorm.place] scan failed', error);
+        renderError(root, error, { retry: true });
+      }
       return;
     }
 

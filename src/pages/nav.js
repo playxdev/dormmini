@@ -1,8 +1,8 @@
 /**
  * Bottom navigation, shared by every authenticated screen.
  *
- * Items without a view are Phase 2 work not yet built; they render disabled
- * rather than being hidden, so the shell keeps the shape of the final design.
+ * Every control leads somewhere as of 1.0.0. The bar carries the three screens
+ * a tenant opens weekly; the rest of the app is one tap deeper, behind เมนู.
  */
 
 const ICONS = {
@@ -17,7 +17,7 @@ const ITEMS = [
   { key: 'home', title: 'หน้าหลัก', view: 'home' },
   { key: 'bill', title: 'บิล', view: 'bills' },
   { key: 'repair', title: 'แจ้งซ่อม', view: 'repairs' },
-  { key: 'menu', title: 'เมนู' }
+  { key: 'menu', title: 'เมนู', view: 'menu' }
 ];
 
 export function navBar(active) {
@@ -32,11 +32,11 @@ export function navBar(active) {
     <nav class="nav" aria-label="เมนูหลัก">
       ${item(ITEMS[0])}
       ${item(ITEMS[1])}
-      <button class="nav__fab" type="button" disabled aria-disabled="true">
+      <button class="nav__fab" type="button" data-nav="scan">
         <span class="nav__fab-circle">
           <svg viewBox="0 0 24 24" aria-hidden="true">${ICONS.scan}</svg>
         </span>
-        <span>สแกน/จ่าย</span>
+        <span>สแกน</span>
       </button>
       ${item(ITEMS[2])}
       ${item(ITEMS[3])}

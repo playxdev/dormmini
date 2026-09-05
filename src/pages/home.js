@@ -1,21 +1,19 @@
 /**
  * Authenticated home screen.
  *
- * Shows identity, the outstanding balance and the feature grid. Tiles whose
- * screens are not built yet render disabled rather than hidden, so the layout
- * keeps the shape of the finished design.
+ * Identity, the outstanding balance, and the four things a tenant comes here
+ * to do. Every tile leads somewhere: a tile that cannot be tapped teaches the
+ * tenant to stop looking at the grid.
  */
 
 import { baht, shortDate } from '../lib/format.js';
 import { navBar, bindNav } from './nav.js';
 
 const TILES = [
-  { tone: 'blue', title: 'บิลค่าเช่า', subtitle: 'ดูประวัติใบเสร็จ', view: 'bills', icon: '<path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Zm2.5 5h7v2h-7V7Zm0 4h7v2h-7v-2Z"/>' },
+  { tone: 'blue', title: 'บิลค่าเช่า', subtitle: 'ยอดค้างและประวัติ', view: 'bills', icon: '<path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Zm2.5 5h7v2h-7V7Zm0 4h7v2h-7v-2Z"/>' },
   { tone: 'orange', title: 'แจ้งซ่อม', subtitle: 'ติดตามสถานะ', view: 'repairs', icon: '<path d="M20 6a5 5 0 0 1-6.6 4.7L6 18l-2-2 7.3-7.4A5 5 0 0 1 16 2l-3 3 3 3 3-3c.6.6 1 1.5 1 2Z"/>' },
-  { tone: 'green', title: 'จดมิเตอร์', subtitle: 'น้ำ/ไฟ', icon: '<path d="M4 4h16v16H4V4Zm3 3v4h4V7H7Zm6 0v4h4V7h-4Zm-6 6v4h4v-4H7Zm6 0v4h4v-4h-4Z"/>' },
-  { tone: 'red', title: 'ประกาศ', subtitle: 'ข่าวสารจากหอ', icon: '<path d="M3 10v4h3l6 4V6L6 10H3Zm14.5 2a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4Z"/>' },
-  { tone: 'purple', title: 'เอกสาร', subtitle: 'สัญญา/ใบเสร็จ', icon: '<path d="M6 2h8l4 4v16H6V2Zm2.5 8h7v2h-7v-2Zm0 4h7v2h-7v-2Z"/>' },
-  { tone: 'green', title: 'ติดต่อเรา', subtitle: 'ผู้ดูแลหอ', icon: '<path d="M6.6 3h3l1.5 4-2 1.5a12 12 0 0 0 6.4 6.4l1.5-2 4 1.5v3c0 1-.8 1.6-1.8 1.5C11.4 18.3 5.7 12.6 5.1 4.8 5 3.8 5.6 3 6.6 3Z"/>' }
+  { tone: 'green', title: 'จดมิเตอร์', subtitle: 'น้ำ/ไฟ ย้อนหลัง', view: 'meters', icon: '<path d="M4 4h16v16H4V4Zm3 3v4h4V7H7Zm6 0v4h4V7h-4Zm-6 6v4h4v-4H7Zm6 0v4h4v-4h-4Z"/>' },
+  { tone: 'red', title: 'ประกาศ', subtitle: 'ข่าวสารจากหอ', view: 'announcements', icon: '<path d="M3 10v4h3l6 4V6L6 10H3Zm14.5 2a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4Z"/>' }
 ];
 
 function escapeHtml(value) {
@@ -33,14 +31,20 @@ function avatar(profile) {
     </span>`;
 }
 
-function tile(item) {
-  const enabled = Boolean(item.view);
+function tile(item, unread) {
+  // The count sits on the tile rather than on the tab bar: announcements are
+  // reached from here, and a badge on a bar item that leads elsewhere would
+  // point at the wrong thing.
+  const badge = item.view === 'announcements' && unread > 0
+    ? `<span class="tile__badge" aria-label="ประกาศใหม่ ${unread} รายการ">${unread}</span>`
+    : '';
+
   return `
-    <button class="tile" type="button"
-      ${enabled ? `data-nav="${item.view}"` : 'disabled aria-disabled="true"'}>
+    <button class="tile" type="button" data-nav="${item.view}">
       <span class="tile__icon tile__icon--${item.tone}">
         <svg viewBox="0 0 24 24" aria-hidden="true">${item.icon}</svg>
       </span>
+      ${badge}
       <strong class="tile__title">${item.title}</strong>
       <small class="tile__subtitle">${item.subtitle}</small>
     </button>`;
@@ -72,10 +76,10 @@ function balanceCard(outstandingSatang, nextDueDate) {
 
 /**
  * @param {HTMLElement} root
- * @param {{profile: object, me: object, billing: object}} data
+ * @param {{profile: object, me: object, billing: object, unread?: number}} data
  * @param {(view: string, param?: string) => void} navigate
  */
-export function renderHome(root, { profile, me, billing }, navigate) {
+export function renderHome(root, { profile, me, billing, unread = 0 }, navigate) {
   const propertyName = me.property_name ?? '';
   const roomId = me.room_id ?? '';
 
@@ -102,7 +106,7 @@ export function renderHome(root, { profile, me, billing }, navigate) {
 
       <main class="home-body">
         ${balanceCard(billing?.outstanding_satang, nextDue)}
-        <div class="tile-grid">${TILES.map(tile).join('')}</div>
+        <div class="tile-grid">${TILES.map((t) => tile(t, unread)).join('')}</div>
       </main>
 
       ${navBar('home')}

@@ -22,32 +22,29 @@ to be visible here immediately, and D1 cannot query across databases.
 
 ## Status
 
-**Milestone 1 — authentication.** The app proves that a LINE user can open the
-MINI App and be identified by dorm.place:
+**1.0.0.** Every screen in §10 that this system can serve is built, and every
+control leads somewhere — nothing renders disabled.
 
 ```
 Open from LINE → LIFF init → LINE login → backend auth
               → resolve tenant/property/room → home screen
 ```
 
-**Phase 2 — tenant features.** Following §10's order:
-
 | | |
 | --- | --- |
-| My Room | done |
-| Invoice | done — balance on the home screen, list and detail |
-| Payment | done — PromptPay QR, full or open amount, report a transfer |
-| Water/Electricity | blocked on storage for meter photos |
-| Repair Request | done — list, detail, and filing one |
-| Announcements | not started |
-
-Tiles for unbuilt screens render disabled, so the layout keeps the shape of the
-finished design.
+| My Room | identity, building and room on the home screen |
+| Invoice | outstanding balance, list, detail with line items |
+| Payment | PromptPay QR, full or open amount, report a transfer |
+| Water/Electricity | readings per month, previous → current and the units used |
+| Repair Request | list, detail, filing one |
+| Announcements | the building's notice board, unread badge, marked read on open |
+| Menu | identity, every screen, the app version |
 
 **Onboarding** (§22) is complete: an unlinked tenant can scan the QR the owner
 issues, or type the code, review the terms, and slide to confirm. The same code
 also arrives as `?invite=CODE` on the permanent link, for tenants who cannot
-scan.
+scan. The scan button on the tab bar runs the same flow for a tenant who
+already has a room and is handed a second one.
 
 `liff.scanCodeV2()` needs **Scan QR** enabled for the LIFF app in the LINE
 Developers Console, and on iOS works only when the LIFF size is `Full`. The app
@@ -57,6 +54,13 @@ to code entry when it is not.
 Amounts cross the API as integer satang and dates in the Gregorian calendar.
 `src/lib/format.js` is the only place either becomes what a Thai tenant reads —
 baht with two decimals, and Buddhist-era years.
+
+Meter *photos* are not shown. The owner takes them as their own audit trail
+during the walk, and what a tenant needs to check a bill is the two numbers.
+
+Documents and a contact screen are not built. They were tiles in the original
+design; a tile that cannot be tapped teaches people to stop looking at the
+grid, so they are gone from 1.0.0 rather than sitting there greyed out.
 
 ## Stack
 
@@ -230,10 +234,16 @@ src/
 ├── lib/
 │   └── format.js      money and Thai date formatting
 ├── pages/
-│   ├── login.js       unauthenticated screen
-│   ├── home.js        identity, balance, feature grid
-│   ├── bills.js       invoice list and detail
-│   └── nav.js         shared bottom navigation
+│   ├── login.js         unauthenticated screen
+│   ├── home.js          identity, balance, tile grid
+│   ├── bills.js         invoice list and detail
+│   ├── payment.js       PromptPay QR and reporting a transfer
+│   ├── repairs.js       list, detail, filing one
+│   ├── announcements.js notice board and one notice
+│   ├── meters.js        water and electricity per month
+│   ├── menu.js          identity, every screen, version
+│   ├── onboarding.js    scan, review terms, confirm
+│   └── nav.js           shared bottom navigation
 └── styles/
     └── app.css        design tokens and screen styles
 

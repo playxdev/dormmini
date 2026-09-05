@@ -12,7 +12,10 @@ export const config = Object.freeze({
   appUrl: env.VITE_APP_URL ?? window.location.origin,
   apiBaseUrl: (env.VITE_API_BASE_URL ?? '').replace(/\/+$/, ''),
   liffId: env.VITE_LINE_LIFF_ID ?? '',
-  mock: env.VITE_MOCK === '1'
+  mock: env.VITE_MOCK === '1',
+  // Replaced at build time from package.json; 'dev' when a tool loads this
+  // module outside a Vite build.
+  version: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev'
 });
 
 export function assertConfig() {

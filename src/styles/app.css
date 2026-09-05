@@ -251,7 +251,9 @@ svg { width: 100%; height: 100%; fill: currentColor; display: block; }
 
 .tile-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* Four tiles, four destinations. Two columns keeps every one of them a
+     comfortable thumb target rather than a 3 + 1 orphan row. */
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 }
 
@@ -715,3 +717,98 @@ textarea.field__control { min-height: 96px; resize: vertical; }
 
 .line-item--pending span:last-child { color: var(--orange); }
 .line-item--pending span:first-child { color: var(--orange); }
+
+/* ---------- announcements ---------- */
+
+.bill-card--unread { border-left: 3px solid var(--red); }
+
+.pin { font-size: 13px; }
+
+.announcement__title { margin: 0 0 6px; font-size: 17px; font-weight: 800; line-height: 1.35; }
+.announcement__meta { margin: 0 0 14px; color: var(--muted); font-size: 12.5px; }
+.announcement__body { font-size: 15px; line-height: 1.65; }
+.announcement__body p { margin: 0 0 12px; }
+.announcement__body p:last-child { margin-bottom: 0; }
+
+.tile { position: relative; }
+
+.tile__badge {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--red);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* ---------- meter readings ---------- */
+
+.sub-note { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+
+.meter-card__title { margin: 0 0 12px; font-size: 15px; font-weight: 800; }
+.meter-card__meta { margin: 12px 0 0; color: var(--muted); font-size: 12px; }
+
+.meter-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.meter-row:first-of-type { border-top: 0; padding-top: 0; }
+
+.meter-row__icon { width: 22px; height: 22px; flex: none; }
+.meter-row__icon--blue { color: var(--blue); }
+.meter-row__icon--orange { color: var(--orange); }
+
+.meter-row__text { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.meter-row__text strong { font-size: 14.5px; font-weight: 700; }
+.meter-row__text small { color: var(--muted); font-size: 12.5px; }
+
+.meter-row__used { display: flex; flex-direction: column; align-items: flex-end; }
+.meter-row__used strong { font-size: 19px; font-weight: 800; }
+.meter-row__used small { color: var(--muted); font-size: 11.5px; }
+
+/* ---------- menu ---------- */
+
+.sub-header--plain { justify-content: flex-start; }
+
+.menu-identity strong { display: block; font-size: 17px; font-weight: 800; }
+.menu-identity p { margin: 4px 0 0; font-size: 14px; }
+.menu-identity__property { color: var(--muted); font-size: 13px !important; }
+
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+.menu-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+
+.menu-row:first-child { border-top: 0; }
+.menu-row__icon { width: 22px; height: 22px; flex: none; color: var(--green); }
+.menu-row__text { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.menu-row__text strong { font-size: 15px; font-weight: 700; }
+.menu-row__text small { color: var(--muted); font-size: 12.5px; }
+.menu-row__chevron { width: 16px; height: 16px; flex: none; color: var(--muted); }
+
+.menu-version { margin: 20px 0 0; color: var(--muted); font-size: 12px; text-align: center; }

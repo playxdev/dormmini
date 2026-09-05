@@ -119,6 +119,33 @@ const MOCK_INVITE = {
   claimed_by_self: false
 };
 
+const MOCK_ANNOUNCEMENTS = {
+  unread_count: 1,
+  announcements: [
+    {
+      id: 'a1', title: 'น้ำประปาหยุดไหล 6 ก.ย. 09:00–15:00',
+      body: 'เรียนผู้เช่าทุกท่าน\nการประปาจะปิดซ่อมท่อเมนหน้าอาคาร วันที่ 6 ก.ย. เวลา 09:00–15:00 น. กรุณาสำรองน้ำใช้ไว้ล่วงหน้า',
+      pinned: true, read: false, published_at: '2026-09-04 08:00:00',
+      property_id: 'P001', property_name: 'Oscar Apartment'
+    },
+    {
+      id: 'a2', title: 'เปลี่ยนเวลาเก็บขยะเป็น 18:00',
+      body: 'ตั้งแต่เดือนหน้าเป็นต้นไป รถขยะจะเข้าเวลา 18:00 ของทุกวันจันทร์ พุธ ศุกร์',
+      pinned: false, read: true, published_at: '2026-08-20 12:30:00',
+      property_id: 'P001', property_name: 'Oscar Apartment'
+    }
+  ]
+};
+
+const MOCK_METERS = {
+  meters: [
+    { period: '2026-09', kind: 'water', previous: 128, current: 135, used: 7, recorded_at: '2026-09-30 09:05:00', room_number: 'A-203' },
+    { period: '2026-09', kind: 'electric', previous: 4512, current: 4720, used: 208, recorded_at: '2026-09-30 09:06:00', room_number: 'A-203' },
+    { period: '2026-08', kind: 'water', previous: 120, current: 128, used: 8, recorded_at: '2026-08-31 09:10:00', room_number: 'A-203' },
+    { period: '2026-08', kind: 'electric', previous: 4300, current: 4512, used: 212, recorded_at: '2026-08-31 09:11:00', room_number: 'A-203' }
+  ]
+};
+
 const MOCK_ME = {
   user_id: 'U001',
   tenant_id: 'T001',
@@ -251,4 +278,40 @@ export function reportPayment(invoiceID, payload) {
     method: 'POST',
     body: payload
   });
+}
+
+/**
+ * The notice board of every building the tenant rents in.
+ *
+ * `unread_count` comes from the server rather than being counted here, so the
+ * badge on the home screen agrees with the list even when the list is not
+ * loaded.
+ */
+export function fetchAnnouncements() {
+  if (config.mock) return Promise.resolve(MOCK_ANNOUNCEMENTS);
+  return request('/api/v1/me/announcements');
+}
+
+export function fetchAnnouncement(id) {
+  if (config.mock) {
+    return Promise.resolve(MOCK_ANNOUNCEMENTS.announcements.find((a) => a.id === id));
+  }
+  return request(`/api/v1/me/announcements/${encodeURIComponent(id)}`);
+}
+
+/**
+ * Marks a notice as opened.
+ *
+ * Fire and forget: the tenant has already read it, and a failed mark must
+ * never keep the text off the screen. Repeating it is a no-op server-side.
+ */
+export function markAnnouncementRead(id) {
+  if (config.mock) return Promise.resolve({ status: 'read' });
+  return request(`/api/v1/me/announcements/${encodeURIComponent(id)}/read`, { method: 'POST' });
+}
+
+/** Water and electricity readings taken during this tenancy. */
+export function fetchMeters() {
+  if (config.mock) return Promise.resolve(MOCK_METERS);
+  return request('/api/v1/me/meters');
 }
