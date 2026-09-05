@@ -674,15 +674,12 @@ Three repositories, one database.
 ``` text
 playxdev/dormplace   backoffice   TypeScript on Workers, D1 binding
                                   OWNS THE SCHEMA — migrations live here
-                                  checked out locally as works/dorm/backend
+                                  checked out locally as works/dorm/backoffice
 
 playxdev/dormapi     tenant API   Go, container host, D1 over REST
 
 playxdev/dormmini    MINI App     Vite + vanilla JS, Cloudflare Pages
 ```
-
-Note the local path mismatch: `dormplace` sits in a directory called
-`backend`, which makes it easy to miss.
 
 **No service outside `dormplace` defines a table.** A schema change is a
 migration in `dormplace/migrations`, applied once to `dorm-db`.
