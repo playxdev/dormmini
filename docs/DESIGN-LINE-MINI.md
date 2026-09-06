@@ -1244,6 +1244,40 @@ A prompt on the home screen can ask again later.
 - **Scan QR** must be enabled for the LIFF app in the LINE Developers Console.
 - On iOS, `liff.scanCodeV2()` works only when the LIFF size is `Full`.
 
+### Two readers, and an open question
+
+There are two ways this app can read a code, and they do not overlap:
+
+``` text
+liff.scanCodeV2()   inside the LINE client        needs Scan QR on + size Full
+getUserMedia        anywhere the page owns the camera
+```
+
+`src/lib/scanner.js` supplies the second, and `onScan` prefers LIFF's wherever
+it exists. Observed on 2026-09-06: leaving LINE and opening
+`dorm.playxdev.com` in an ordinary browser scans correctly through the in-page
+reader. Inside the LINE client on iOS the in-app browser hands the page no
+camera at all, so that path cannot serve an iPhone tenant.
+
+**Open — not yet decided.** Leaving LINE to scan is a working escape hatch but
+not the intended experience: the tenant should stay inside the LINE
+environment. Three ways to get there, none chosen:
+
+1. Turn on *Scan QR* and set the LIFF size to `Full`, and let LIFF's reader
+   serve every tenant inside LINE. Cheapest, and the only one that works on
+   iOS inside the client. Costs the `Full` size, which the app must then look
+   right at.
+2. Keep the in-page reader as the out-of-LINE fallback only, and accept that
+   an iOS tenant who somehow reaches it types the code instead.
+3. Lean on `?invite=CODE` and stop asking a tenant to scan at all. The owner
+   sends the link through the Official Account, the tenant taps it, and
+   `inviteCodeFromUrl()` carries the code into the review screen with no
+   camera anywhere in the flow. The QR sheet stays for tenants standing in
+   front of the owner.
+
+Option 3 is the one that removes the constraint rather than satisfying it, and
+it is worth weighing before spending the `Full` size on option 1.
+
 ## 23. Payment
 
 ### The money does not pass through this system
