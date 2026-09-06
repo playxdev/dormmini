@@ -316,3 +316,47 @@ export function fetchMeters() {
   if (config.mock) return Promise.resolve(MOCK_METERS);
   return request('/api/v1/me/meters');
 }
+
+/**
+ * Records an email address on the account and asks the backend to mail a
+ * verification link.
+ *
+ * This address is the only thing that can return an account to a tenant who
+ * loses their LINE login, and an unverified one recovers nothing — the flow is
+ * not finished until the link in the inbox is opened.
+ *
+ * Rejects with INVITE_ALREADY_CLAIMED on 409, which here means the address is
+ * already on another account; the pages translate the code, not this module.
+ */
+export function setEmail(email) {
+  if (config.mock) return Promise.resolve({ status: 'verification_sent' });
+  return request('/api/v1/me/email', { method: 'POST', body: { email } });
+}
+
+/**
+ * Asks for a recovery link.
+ *
+ * Always resolves, and always with the same answer, whether or not the address
+ * is known. Telling the caller would turn this into a way to ask who rents
+ * here.
+ */
+export function requestRecovery(email) {
+  if (config.mock) return Promise.resolve({ status: 'sent_if_known' });
+  return request('/api/v1/recovery/request', { method: 'POST', auth: false, body: { email } });
+}
+
+/**
+ * Points an existing account at the LINE account presenting the token, and
+ * returns a session for it.
+ *
+ * Unauthenticated by design: the caller has no session — that is the whole
+ * problem it solves. The two tokens are the proof instead.
+ */
+export function rebindWithRecovery(recoveryToken, idToken) {
+  if (config.mock) return Promise.resolve(MOCK_AUTH);
+  return request('/api/v1/recovery/rebind', {
+    method: 'POST',
+    auth: false,
+    body: { recovery_token: recoveryToken, id_token: idToken }
+  });
+}

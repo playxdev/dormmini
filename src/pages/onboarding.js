@@ -28,8 +28,9 @@ const CODE_PATTERN = /^[34679ACDEFGHJKMNPQRTUVWXY]{8}$/;
  * @param {{onScan: () => void, onCode: (code: string) => void}} actions
  */
 export function renderUnlinked(root, actions) {
-  // Two readers, one button. LIFF's is the only one the LINE client allows;
-  // the camera covers an external browser, where LIFF has none to offer.
+  // Two readers, one button. LIFF's is preferred where the console switches
+  // make it available, for LINE's own scanner UI; the page's own camera covers
+  // everywhere else, the LINE client included.
   const scannable = canScanCode() || cameraScanAvailable();
 
   root.innerHTML = `
@@ -61,6 +62,10 @@ export function renderUnlinked(root, actions) {
       </form>
 
       <p class="onboard__help">ยังไม่มีรหัส? ติดต่อผู้ดูแลหอพักของคุณ</p>
+
+      <button class="btn btn--ghost" type="button" id="onboard-recover">
+        เคยใช้งานอยู่แล้ว? กู้คืนบัญชีด้วยอีเมล
+      </button>
     </main>`;
 
   const error = root.querySelector('#onboard-error');
@@ -70,6 +75,13 @@ export function renderUnlinked(root, actions) {
   };
 
   root.querySelector('#onboard-scan')?.addEventListener('click', actions.onScan);
+
+  // A tenant who lost their LINE account lands on this screen, because a new
+  // LINE subject is a new person here. Recovery is reached from it or from
+  // nowhere.
+  const recover = root.querySelector('#onboard-recover');
+  if (actions.onRecover) recover.addEventListener('click', actions.onRecover);
+  else recover.remove();
 
   root.querySelector('#onboard-form').addEventListener('submit', (event) => {
     event.preventDefault();

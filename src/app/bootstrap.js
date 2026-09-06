@@ -12,6 +12,7 @@ import {
   authenticateWithLine, fetchMe, fetchInvoices, fetchInvoice,
   fetchRepairs, fetchRepair, createRepair,
   fetchInvite, claimInvite,
+  setEmail, requestRecovery, rebindWithRecovery,
   fetchPaymentInfo, reportPayment,
   fetchAnnouncements, fetchAnnouncement, markAnnouncementRead,
   fetchMeters,
@@ -23,6 +24,7 @@ import { renderHome } from '../pages/home.js';
 import { renderBills, renderBillDetail } from '../pages/bills.js';
 import { renderRepairs, renderRepairDetail, renderRepairForm } from '../pages/repairs.js';
 import { renderUnlinked, renderInviteReview } from '../pages/onboarding.js';
+import { renderEmailCapture, renderRecoveryRequest } from '../pages/email.js';
 import { renderPayment } from '../pages/payment.js';
 import { renderAnnouncements, renderAnnouncement } from '../pages/announcements.js';
 import { renderMeters } from '../pages/meters.js';
@@ -110,6 +112,24 @@ function renderError(root, error, options = {}) {
   }
 }
 
+/**
+ * Reads a recovery token the app was opened with.
+ *
+ * The mailed link is the LIFF permanent link with `?recovery=<token>`, so it
+ * arrives here the same way an invite code does. It is removed from the URL as
+ * soon as it is read: a token left in the address bar is a live link to the
+ * account for anyone who reopens the page from history.
+ */
+function takeRecoveryToken() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('recovery');
+  if (!token) return null;
+  params.delete('recovery');
+  const query = params.toString();
+  window.history.replaceState(null, '', window.location.pathname + (query ? `?${query}` : ''));
+  return token;
+}
+
 export async function start(root) {
   renderLoading(root);
 
@@ -131,6 +151,7 @@ export async function start(root) {
     return;
   }
 
+  let recoveryFailed = false;
   try {
     const idToken = getIdToken();
     if (!idToken) {
@@ -143,9 +164,20 @@ export async function start(root) {
       return;
     }
 
+    // A recovery link is presented instead of an ordinary login, not after
+    // one: it is what says which account this LINE account should become. A
+    // failed rebind falls through to the ordinary path rather than dead-ending,
+    // because an expired token still leaves a usable LINE login behind it.
+    const recovery = takeRecoveryToken();
     const [profile, auth] = await Promise.all([
       getLineProfile(),
-      authenticateWithLine(idToken)
+      recovery
+        ? rebindWithRecovery(recovery, idToken).catch((error) => {
+            console.error('[dorm.place] recovery rebind failed', error);
+            recoveryFailed = true;
+            return authenticateWithLine(idToken);
+          })
+        : authenticateWithLine(idToken)
     ]);
 
     setToken(auth.token ?? auth.access_token);
@@ -159,7 +191,9 @@ export async function start(root) {
       // the state every new tenant starts in, and the app's job is to offer the
       // way out of it rather than an error.
       if (error instanceof AppError && error.code === ErrorCode.TENANT_NOT_FOUND) {
-        startOnboarding(root);
+        startOnboarding(root, recoveryFailed
+          ? 'ลิงก์กู้คืนหมดอายุหรือถูกใช้ไปแล้ว กรุณาขอลิงก์ใหม่'
+          : null);
         return;
       }
       throw error;
@@ -270,6 +304,17 @@ function startRouter(root, session) {
       } catch (error) {
         renderError(root, error, { retry: true });
       }
+      return;
+    }
+
+    if (view === 'email') {
+      renderEmailCapture(root, { ...session.me, skippable: false }, {
+        onSave: async (email) => {
+          await setEmail(email);
+          session.me = { ...session.me, email, email_verified: false };
+        },
+        onDone: () => navigate('menu')
+      });
       return;
     }
 
@@ -401,7 +446,23 @@ function inviteCodeFromUrl() {
 /**
  * Screens for a tenant whose account is not linked to a room yet.
  */
-function startOnboarding(root) {
+/**
+ * Offered once the room is bound and never before it.
+ *
+ * Standing between a tenant and the room they are trying to reach is the one
+ * thing this screen must not do — so it comes after the confirmation, and it
+ * can be skipped.
+ */
+function askForEmail(root, me) {
+  return new Promise((resolve) => {
+    renderEmailCapture(root, { ...me, skippable: true }, {
+      onSave: (email) => setEmail(email),
+      onDone: resolve
+    });
+  });
+}
+
+function startOnboarding(root, notice) {
   const review = async (code) => {
     renderLoading(root);
     try {
@@ -410,6 +471,10 @@ function startOnboarding(root) {
         onBack: () => startOnboarding(root),
         onConfirm: async () => {
           await claimInvite(code);
+          // The account exists now and has no way back into it yet. Asked here
+          // rather than later because this is the one moment the tenant is
+          // certain to be looking at the screen.
+          await askForEmail(root, {});
           // Restart rather than render the home screen directly: the whole
           // session context changed, and start() is the one place that builds
           // it.
@@ -448,7 +513,15 @@ function startOnboarding(root) {
     }
   };
 
-  renderUnlinked(root, actions);
+  actions.onRecover = () => {
+    renderRecoveryRequest(root, {
+      onRequest: (email) => requestRecovery(email),
+      onBack: () => startOnboarding(root)
+    });
+  };
+
+  if (notice) renderUnlinkedWith(root, notice);
+  else renderUnlinked(root, actions);
 
   const code = inviteCodeFromUrl();
   if (code) review(code);

@@ -26,6 +26,10 @@ const ITEMS = [
     icon: '<path d="M20 6a5 5 0 0 1-6.6 4.7L6 18l-2-2 7.3-7.4A5 5 0 0 1 16 2l-3 3 3 3 3-3c.6.6 1 1.5 1 2Z"/>'
   },
   {
+    view: 'email', title: 'อีเมลกู้คืนบัญชี', subtitle: 'ทางเดียวที่จะกลับเข้าห้องเดิมได้',
+    icon: '<path d="M3 5h18v14H3V5Zm2.4 2L12 12l6.6-5H5.4ZM5 8.6V17h14V8.6l-7 5.3-7-5.3Z"/>'
+  },
+  {
     view: 'scan', title: 'ผูกห้องเพิ่ม', subtitle: 'สแกน QR จากผู้ดูแลหอ',
     icon: '<path d="M3 3h8v8H3V3Zm2 2v4h4V5H5Zm8-2h8v8h-8V3Zm2 2v4h4V5h-4ZM3 13h8v8H3v-8Zm2 2v4h4v-4H5Zm8-2h3v3h-3v-3Zm5 0h3v3h-3v-3Zm-5 5h3v3h-3v-3Zm5 0h3v3h-3v-3Z"/>'
   }
@@ -55,6 +59,22 @@ function row(item, badge) {
 }
 
 /**
+ * What each row has to say for itself before it is opened.
+ *
+ * An account with no verified address cannot be recovered, and the tenant has
+ * no way to learn that except from here, so the row carries it rather than
+ * waiting to be tapped.
+ */
+function badgeFor(item, { unread, me }) {
+  if (item.view === 'announcements') return unread > 0 ? unread : 0;
+  if (item.view === 'email') {
+    if (me?.email_verified) return 0;
+    return me?.email ? 'ยังไม่ยืนยัน' : 'ยังไม่ได้ตั้ง';
+  }
+  return 0;
+}
+
+/**
  * @param {HTMLElement} root
  * @param {{profile: object, me: object, unread: number, version: string}} data
  * @param {(view: string, param?: string) => void} navigate
@@ -74,7 +94,7 @@ export function renderMenu(root, { profile, me, unread, version }, navigate) {
         </section>
 
         <nav class="menu-list" aria-label="เมนูทั้งหมด">
-          ${ITEMS.map((item) => row(item, item.view === 'announcements' && unread > 0 ? unread : 0)).join('')}
+          ${ITEMS.map((item) => row(item, badgeFor(item, { unread, me }))).join('')}
         </nav>
 
         <p class="menu-version">dorm.place · เวอร์ชัน ${escapeHtml(version)}</p>
