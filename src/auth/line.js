@@ -92,6 +92,21 @@ export async function scanCode() {
   return result?.value ?? null;
 }
 
+/**
+ * Opens a URL for reading without leaving the app.
+ *
+ * Inside the LINE client `liff.openWindow` puts it in LINE's own browser, so
+ * the tenant returns to the review screen with one back tap. A plain
+ * `window.open` there would either be blocked or strand them outside LINE.
+ */
+export function openWindow(url) {
+  if (!config.mock && initialized && liff.isInClient()) {
+    liff.openWindow({ url, external: false });
+    return;
+  }
+  window.open(url, '_blank', 'noopener');
+}
+
 export function closeWindow() {
   if (config.mock) return;
   if (liff.isInClient()) liff.closeWindow();

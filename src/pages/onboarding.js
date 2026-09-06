@@ -8,7 +8,7 @@
  */
 
 import { baht, shortDate } from '../lib/format.js';
-import { canScanCode } from '../auth/line.js';
+import { canScanCode, openWindow } from '../auth/line.js';
 import { cameraScanAvailable } from '../lib/scanner.js';
 
 function escapeHtml(value) {
@@ -110,6 +110,11 @@ export function renderInviteReview(root, invite, actions) {
       <span>${value}</span>
     </li>`;
 
+  // Confirming is gated on opening the lease, but only where there is a lease
+  // to open: a deployment with no BACKOFFICE_URL sends no link, and a screen
+  // that demands a document it cannot show would strand the tenant.
+  const gated = Boolean(invite.lease_url);
+
   root.innerHTML = `
     <div class="screen screen--sub">
       <header class="sub-header">
@@ -135,22 +140,46 @@ export function renderInviteReview(root, invite, actions) {
           </ul>
         </section>
 
+        ${gated ? `
+        <section class="card">
+          <p class="card__label">สัญญาเช่า</p>
+          <p class="review__terms">อ่านสัญญาให้ครบก่อนยืนยัน ตัวเลขด้านบนเป็นส่วนหนึ่งของสัญญาฉบับนี้</p>
+          <button class="btn btn--ghost" type="button" id="review-lease">
+            <svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l4 4v16H6V2Zm7 1.5V7h3.5L13 3.5ZM8 11h8v1.6H8V11Zm0 3.4h8V16H8v-1.4Z"/></svg>
+            อ่านสัญญาฉบับเต็ม
+          </button>
+          <p class="review__version" id="review-read">ยังไม่ได้เปิดอ่าน</p>
+        </section>` : ''}
+
         <p class="form__error" id="review-error" hidden></p>
 
         <div class="slide" id="review-slide">
           <div class="slide__track">
             <span class="slide__label">เลื่อนเพื่อยืนยัน</span>
-            <button class="slide__knob" type="button" aria-label="เลื่อนเพื่อยืนยัน">
+            <button class="slide__knob" type="button" aria-label="เลื่อนเพื่อยืนยัน"${gated ? ' disabled' : ''}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 7.6 5.4 14.2 12l-6.6 6.6L9 20l8-8-8-8Z"/></svg>
             </button>
           </div>
         </div>
 
-        <p class="card__note">การยืนยันจะบันทึกเงื่อนไขที่แสดงด้านบนไว้เป็นหลักฐาน</p>
+        <p class="card__note">การยืนยันจะบันทึกเงื่อนไขที่แสดงด้านบน${gated ? ` และสัญญาฉบับ ${escapeHtml(invite.terms_version ?? '')}` : ''}ไว้เป็นหลักฐาน</p>
       </main>
     </div>`;
 
   root.querySelector('#review-back').addEventListener('click', actions.onBack);
+
+  // Opening the document is what unlocks the gesture. It is not proof of
+  // reading and does not pretend to be — it is the difference between a tenant
+  // who was shown the terms and one who never had them on screen.
+  root.querySelector('#review-lease')?.addEventListener('click', () => {
+    openWindow(invite.lease_url);
+    const knob = root.querySelector('.slide__knob');
+    knob.disabled = false;
+    const note = root.querySelector('#review-read');
+    note.textContent = `เปิดอ่านแล้ว · สัญญาฉบับ ${invite.terms_version ?? ''}`;
+    note.classList.add('is-read');
+  });
+
   bindSlide(root.querySelector('#review-slide'), async () => {
     const error = root.querySelector('#review-error');
     error.hidden = true;
