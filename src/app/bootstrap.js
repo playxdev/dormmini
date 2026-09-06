@@ -7,7 +7,7 @@
 
 import { config, assertConfig } from './config.js';
 import { initLine, isLoggedIn, login, getIdToken, getLineProfile, closeWindow, scanCode, canScanCode } from '../auth/line.js';
-import { scanWithCamera } from '../lib/scanner.js';
+import { scanWithCamera, cameraScanAvailable } from '../lib/scanner.js';
 import {
   authenticateWithLine, fetchMe, fetchInvoices, fetchInvoice,
   fetchRepairs, fetchRepair, createRepair,
@@ -48,6 +48,10 @@ const MESSAGES = {
   [ErrorCode.UNAUTHORIZED]: {
     title: 'เซสชันหมดอายุ',
     detail: 'กรุณาเข้าสู่ระบบด้วย LINE อีกครั้ง'
+  },
+  [ErrorCode.SCAN_UNAVAILABLE]: {
+    title: 'เปิดกล้องไม่สำเร็จ',
+    detail: 'อุปกรณ์นี้เปิดกล้องในแอปไม่ได้ กรุณากรอกรหัสเชิญแทน'
   },
   [ErrorCode.CONFIG_INVALID]: {
     title: 'ตั้งค่าแอปพลิเคชันไม่ถูกต้อง',
@@ -187,6 +191,33 @@ export async function start(root) {
 }
 
 /**
+ * Reads an invite code with whichever reader this environment has.
+ *
+ * LIFF's own scanner is preferred where `isApiAvailable` reports it, for
+ * LINE's native UI rather than for reach — with *Scan QR* off it is absent
+ * inside the LINE client too, and the in-page camera is what serves everyone.
+ *
+ * Resolves null when the tenant closed the scanner without reading anything.
+ * Throws only when no reader could be opened at all.
+ *
+ * @returns {Promise<string|null>}
+ */
+async function readInviteCode() {
+  let value;
+  if (canScanCode()) {
+    value = await scanCode();
+  } else if (cameraScanAvailable()) {
+    value = await scanWithCamera();
+  } else {
+    throw new AppError(ErrorCode.SCAN_UNAVAILABLE, 'no 2D code reader in this environment');
+  }
+  if (!value) return null;
+  // The QR may hold a bare code or the permanent link containing one.
+  const match = String(value).match(/[A-Za-z0-9]{8}$/);
+  return (match ? match[0] : String(value)).toUpperCase();
+}
+
+/**
  * Screen routing.
  *
  * The MINI App is a handful of screens reached by tapping, and LIFF owns the
@@ -257,10 +288,8 @@ function startRouter(root, session) {
       // move, or a second rental. The onboarding screens own that flow, so
       // this hands off to them rather than repeating the review and confirm.
       try {
-        const value = await scanCode();
-        if (!value) return;
-        const match = String(value).match(/[A-Za-z0-9]{8}$/);
-        const code = (match ? match[0] : String(value)).toUpperCase();
+        const code = await readInviteCode();
+        if (!code) return;
         renderLoading(root);
         const invite = await fetchInvite(code);
         renderInviteReview(root, invite, {
@@ -271,8 +300,11 @@ function startRouter(root, session) {
           }
         });
       } catch (error) {
+        // Either reader can fail on a refused permission or a console switch
+        // left off, and neither is worth a bare "something went wrong": the
+        // way past it is the code typed by hand, which onboarding owns.
         console.error('[dorm.place] scan failed', error);
-        renderError(root, error, { retry: true });
+        renderError(root, new AppError(ErrorCode.SCAN_UNAVAILABLE, error), { retry: true });
       }
       return;
     }
@@ -404,13 +436,8 @@ function startOnboarding(root) {
     onCode: review,
     onScan: async () => {
       try {
-        // LIFF's reader first wherever it exists: inside the LINE client it is
-        // the only one that can reach the camera at all.
-        const value = canScanCode() ? await scanCode() : await scanWithCamera();
-        if (!value) return;
-        // The QR may hold a bare code or the permanent link containing one.
-        const match = String(value).match(/[A-Za-z0-9]{8}$/);
-        await review((match ? match[0] : value).toUpperCase());
+        const code = await readInviteCode();
+        if (code) await review(code);
       } catch (error) {
         // Inside LINE this is "Scan QR" left off for the LIFF app; in a
         // browser it is a refused camera permission. The tenant can type the
