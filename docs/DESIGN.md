@@ -1251,20 +1251,28 @@ A prompt on the home screen can ask again later.
 
 ### Two readers, one button
 
-There are two ways this app can read a code, and they do not overlap:
+There are two ways this app can read a code, and the second is a superset of
+the first:
 
 ``` text
-liff.scanCodeV2()   inside the LINE client        needs Scan QR on + size Full
-getUserMedia        anywhere the page owns the camera
+liff.scanCodeV2()   Scan QR on + size Full, LIFF browser, iOS 14.3+ / Android
+getUserMedia        any secure context whose engine has it, iOS 14.3+ included
 ```
 
-`src/lib/scanner.js` supplies the second, and `onScan` prefers LIFF's wherever
-it exists — inside the LINE client it is the only reader that can reach the
-camera at all. The decoder is imported dynamically: it is a third of this
-app's JavaScript and a tenant opening from LINE never loads it.
+Both floors are iOS 14.3, because both rest on the same thing: LINE's in-app
+browser is WKWebView there, and WKWebView gained `getUserMedia` in 14.3. The
+LIFF reader is not a way around a missing camera API — it is LINE's own UI in
+front of the same camera, gated behind two console switches.
 
-Which of these the product should depend on is not settled. `TODO.md` §2
-carries the question.
+`src/lib/scanner.js` supplies the second and `onScan` prefers LIFF's wherever
+`liff.isApiAvailable('scanCodeV2')` says it exists, for the native UI rather
+than for reach. With *Scan QR* off — the state today — that check is false
+inside the LINE client too, so the in-page reader is what a tenant actually
+gets everywhere. The decoder is imported dynamically: it is a third of this
+app's JavaScript, and a tenant who arrives by `?invite=CODE` never loads it.
+
+Which reader the product should depend on is not settled. `TODO.md` §2 carries
+the question.
 
 ## 23. Payment
 

@@ -1,11 +1,18 @@
 /**
- * Camera 2D code reader, for the environments LIFF's own scanner cannot serve.
+ * Camera 2D code reader, for every environment LIFF's own scanner does not
+ * serve.
  *
- * Inside the LINE client `liff.scanCodeV2()` is the only reader that works and
- * this one must not be used: LINE's in-app browser does not hand a page the
- * camera on iOS. Everywhere else — an external browser on a desktop or a
- * phone — the camera is ours to open, and `@paulmillr/qr` already carries the
- * decoder alongside the encoder the payment screen draws QR codes with.
+ * That is more environments than it sounds. `liff.scanCodeV2()` is available
+ * only when *Scan QR* is on for the LIFF app and its size is `Full`; with
+ * either missing it is absent inside the LINE client too, and this reader is
+ * the only one left. It is not a browsers-only fallback: LINE's in-app browser
+ * is WKWebView on iOS and Chrome's WebView on Android, and WKWebView has had
+ * `getUserMedia` since iOS 14.3 — the same floor LINE documents for
+ * `scanCodeV2()` itself. Below iOS 14.3 neither reader exists and the tenant
+ * types the code.
+ *
+ * `@paulmillr/qr` already carries the decoder alongside the encoder the
+ * payment screen draws QR codes with, so this costs no new dependency.
  */
 
 /**
@@ -68,9 +75,16 @@ export async function scanWithCamera() {
       finished = true;
       stopLoop();
       camera.stop();
+      window.removeEventListener('pagehide', abandon);
       overlay.remove();
       resolve(value);
     };
+
+    // A tenant who closes the LIFF window mid-scan never reaches finish(), and
+    // an Android camera left with a live track stays locked for the next app
+    // that asks for it. pagehide fires on that close where unload does not.
+    function abandon() { finish(null); }
+    window.addEventListener('pagehide', abandon);
 
     stopLoop = frameLoop(() => {
       if (finished) return;
