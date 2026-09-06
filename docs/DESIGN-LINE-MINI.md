@@ -1,13 +1,13 @@
 # DESIGN-LINE-MINI.md
 
-# dorm.place --- LINE MINI App Design Specification
+# dorm.place --- LINE LIFF App Design Specification
 
 ## 1. Purpose
 
 This document defines the initial technical and UX design for the
-`dorm.place` LINE MINI App.
+`dorm.place` LINE LIFF app.
 
-The LINE MINI App is the tenant-facing application for the dorm.place
+The LINE LIFF app is the tenant-facing application for the dorm.place
 multi-tenant SaaS platform.
 
 The first implementation target is:
@@ -27,7 +27,7 @@ https://app.dorm.place/
 
 ## 2. Product Architecture
 
-The platform uses one LINE MINI App for all participating dormitories.
+The platform uses one LINE LIFF app for all participating dormitories.
 
 It is built as three services over **one shared database**.
 
@@ -35,7 +35,7 @@ It is built as three services over **one shared database**.
    LINE user                          dormitory owner / staff
        │                                        │
        ▼                                        ▼
- dorm.place MINI App                    dorm.place backoffice
+ dorm.place LIFF app                    dorm.place backoffice
    (playxdev/dormmini)                   (playxdev/dormplace)
    Cloudflare Pages                      Cloudflare Workers
        │                                        │
@@ -60,10 +60,10 @@ place any table is defined or changed; the other services read the same
 database and add none of their own.
 
 A second database is not an option. The onboarding flow depends on a contract
-activated in the backoffice being immediately visible to the MINI App, and D1
+activated in the backoffice being immediately visible to the LIFF app, and D1
 offers no query across databases — not even a join.
 
-The application must NOT create a separate LINE MINI App per dormitory.
+The application must NOT create a separate LINE channel per dormitory.
 
 Example:
 
@@ -77,7 +77,7 @@ LINE User B
           └── Room B-105
 ```
 
-Both users use the same MINI App.
+Both users use the same LIFF app.
 
 ------------------------------------------------------------------------
 
@@ -86,11 +86,11 @@ Both users use the same MINI App.
 ### Development
 
 ``` text
-MINI App Endpoint:
+LIFF Endpoint URL:
 https://dorm.playxdev.com/
 
-Environment:
-Developing
+LINE Login channel:
+dorm.place, Published
 
 Hosting:
 Cloudflare Pages
@@ -99,11 +99,11 @@ Cloudflare Pages
 ### Production
 
 ``` text
-MINI App Endpoint:
+LIFF Endpoint URL:
 https://app.dorm.place/
 
-Environment:
-Published
+LINE Login channel:
+a second channel under the same provider
 
 Hosting:
 Cloudflare Pages
@@ -115,23 +115,18 @@ Use environment configuration.
 
 ------------------------------------------------------------------------
 
-## 4. LINE MINI App
+## 4. The LINE channel
 
-The LINE Developers Console contains three internal environments:
+The tenant surface is a **LIFF app on a LINE Login channel**, not a LINE MINI
+App. The application code does not know the difference: it calls `liff.init`,
+`liff.login`, `liff.getIDToken`, `liff.getProfile`, `liff.scanCodeV2` and
+`liff.closeWindow`, and none of those is exclusive to LINE MINI App. The
+channel type is therefore a deployment decision, reversible with configuration.
 
-``` text
-Developing
-Review
-Published
-```
+### Why not a MINI App channel
 
-The initial implementation uses only:
-
-``` text
-Developing
-```
-
-Each environment has its **own** LIFF ID. They are not interchangeable.
+A MINI App channel has three internal environments — `Developing`, `Review`,
+`Published` — each with its own LIFF ID, and it was the original plan:
 
 ``` text
 Developing   2011361700-JZlB29PM
@@ -139,17 +134,58 @@ Review       2011361701-CK48xQPp
 Published    2011361702-IZrdVpdn
 ```
 
-The LIFF URL for an environment is:
+Two properties of that path made it unusable for a beta:
+
+- A channel in `Developing` can only be opened by LINE accounts holding an
+  Admin, Member or Tester role on it. The LIFF URL is an allowlist, not a
+  secret: an account that is not enrolled sees an error, however unguessable
+  the link.
+- Reaching `Published` requires a review by LY Corporation that takes one to
+  two weeks, and a submission from Thailand requires a **certified provider**
+  account, which PlayDevX does not hold.
+
+A LINE Login channel is switched from `Developing` to `Published` in the
+console with no review, and is then open to every LINE user. The MINI App
+channel is left in place; adopting it later is two configuration values and an
+endpoint, with no code change.
+
+What is given up: the permanent link is `liff.line.me` rather than
+`miniapp.line.me`, the app does not appear in LINE's MINI App directory, first
+login costs one extra tap on the consent screen, and **service messages** —
+reaching a tenant who has not added the Official Account — are a MINI App
+feature. Notifications go through the Messaging API instead, to tenants who
+accepted the add-friend option.
+
+### One provider, always
+
+A LINE user ID is unique per **provider**, not per channel. Every channel this
+system uses must live under **PlayDevX**. A channel created under a different
+provider issues a different `sub` for the same human being, and every tenant
+already bound to a room would have to be linked again.
+
+### Configuration
+
+The LIFF URL is:
 
 ``` text
-https://miniapp.line.me/<LIFF_ID>
+https://liff.line.me/<LIFF_ID>
 ```
 
 The LIFF ID must be stored in application configuration:
 
 ``` text
-VITE_LINE_LIFF_ID=2011361700-JZlB29PM
+VITE_LINE_LIFF_ID=<LIFF_ID>
 ```
+
+The API verifies the `aud` claim of every ID token against the numeric channel
+ID, so `LINE_CHANNEL_ID` in `dormapi` must name the same channel:
+
+``` text
+LIFF ID 1234567890-AbCdEfGh   ->   LINE_CHANNEL_ID=1234567890
+```
+
+A mismatch fails after LINE has already accepted the login, which reads as a
+backend fault rather than a configuration one.
 
 A LIFF ID is public. It is inlined into the browser bundle by design and
 identifies the app, not the account. The **channel secret** is different: it is
@@ -170,15 +206,16 @@ token as a configuration error rather than retrying the login.
 
 ### Endpoint URL
 
-The endpoint URL is configured per environment in the LINE Developers Console
-under **Web app settings**, and points at the deployed frontend.
+The endpoint URL is configured per LIFF app in the LINE Developers Console and
+points at the deployed frontend.
 
 ``` text
-Developing   →   https://dorm.playxdev.com/
-Published    →   https://app.dorm.place/
+development   →   https://dorm.playxdev.com/
+production    →   https://app.dorm.place/
 ```
 
-Review and Published keep the LINE default endpoints until each is ready.
+A LIFF app carries exactly one endpoint URL. Serving both at once means a
+second LIFF app under the same provider, not a second product.
 
 Never commit secrets or environment-specific credentials into source
 control.
@@ -187,7 +224,7 @@ control.
 
 ## 5. Initial User Flow
 
-The first milestone is to prove that a LINE user can open the MINI App
+The first milestone is to prove that a LINE user can open the LIFF app
 and be identified by dorm.place.
 
 ``` text
@@ -197,7 +234,7 @@ User
 LINE
  │
  ▼
-LINE MINI App
+LINE LIFF app
  │
  ▼
 dorm.playxdev.com
@@ -260,7 +297,7 @@ the LINE client, and even there the user is already authenticated. It remains
 in the codebase as the fallback for a failed or cancelled login.
 
 The exact authentication implementation must follow the current LINE
-LIFF/MINI App documentation and should not expose channel secrets in
+LIFF documentation and should not expose channel secrets in
 browser code.
 
 ------------------------------------------------------------------------
@@ -348,7 +385,7 @@ returning someone else's data — the failure is visible instead of silent.
 
 ## 8. Multi-Tenant Design
 
-The same MINI App must dynamically load property-specific configuration.
+The same LIFF app must dynamically load property-specific configuration.
 
 Example:
 
@@ -390,7 +427,7 @@ For another tenant:
 ห้อง B-105
 ```
 
-No separate MINI App is required.
+No separate LIFF app is required.
 
 ------------------------------------------------------------------------
 
@@ -445,7 +482,7 @@ For the first MVP, only the identity/property information is required.
 
 Required:
 
--   LINE MINI App bootstrap
+-   LINE LIFF app bootstrap
 -   LIFF initialization
 -   LINE authentication
 -   Retrieve LINE profile
@@ -502,14 +539,14 @@ Use cases:
 -   Meter reading result
 
 Messaging is a backend capability and must not be implemented by
-exposing messaging credentials in the MINI App frontend.
+exposing messaging credentials in the LIFF app frontend.
 
 ------------------------------------------------------------------------
 
 ## 11. Backend API
 
-The MINI App talks only to the tenant API over HTTPS. The backoffice does not
-serve it, and the MINI App never reaches the database.
+The LIFF app talks only to the tenant API over HTTPS. The backoffice does not
+serve it, and the LIFF app never reaches the database.
 
 ``` text
 POST /api/v1/auth/line              { id_token } -> { token, expires_at }
@@ -651,7 +688,7 @@ applies only under `playxdev.com`.
 Example:
 
 ``` text
-LINE MINI App
+LINE LIFF app
     │
     ▼
 app.dorm.place
@@ -660,10 +697,14 @@ app.dorm.place
 api.dorm.place
 ```
 
-The domain migration must not require creating another LINE MINI App.
+The domain migration must not require another LINE provider, and must not
+require another LINE Login channel.
 
-Only the appropriate LINE MINI App endpoint/configuration should be
-updated during production rollout.
+A LIFF app carries exactly one endpoint URL, so serving development and
+production at the same time means a second **LIFF app** — added to the same
+`dorm.place` channel, which keeps the channel ID and therefore
+`LINE_CHANNEL_ID` in `dormapi` unchanged for both. Only `VITE_LINE_LIFF_ID`
+differs between the two builds.
 
 ------------------------------------------------------------------------
 
@@ -678,13 +719,13 @@ playxdev/dormplace   backoffice   TypeScript on Workers, D1 binding
 
 playxdev/dormapi     tenant API   Go, container host, D1 over REST
 
-playxdev/dormmini    MINI App     Vite + vanilla JS, Cloudflare Pages
+playxdev/dormmini    LIFF app     Vite + vanilla JS, Cloudflare Pages
 ```
 
 **No service outside `dormplace` defines a table.** A schema change is a
 migration in `dormplace/migrations`, applied once to `dorm-db`.
 
-MINI App structure:
+LIFF app structure:
 
 ``` text
 dorm-mini/
@@ -761,7 +802,7 @@ private configuration.
 
 ## 16. Error States
 
-The MINI App must handle at least:
+The LIFF app must handle at least:
 
 ``` text
 LINE SDK initialization failed
@@ -787,7 +828,7 @@ Never display raw API errors, stack traces, tokens, or secrets to users.
 
 ## 17. UX Principles
 
-The MINI App is a mobile-first application.
+The LIFF app is a mobile-first application.
 
 Principles:
 
@@ -801,7 +842,7 @@ Principles:
 -   Use LINE identity whenever possible
 -   Keep important actions within one or two taps
 
-The MINI App should feel like a lightweight LINE-native service rather
+The LIFF app should feel like a lightweight LINE-native service rather
 than a desktop website compressed onto a phone.
 
 ------------------------------------------------------------------------
@@ -811,7 +852,7 @@ than a desktop website compressed onto a phone.
 The first successful demo is considered complete when this flow works:
 
 ``` text
-1. Open MINI App from LINE
+1. Open LIFF app from LINE
           ↓
 2. dorm.playxdev.com loads
           ↓
@@ -823,19 +864,19 @@ The first successful demo is considered complete when this flow works:
           ↓
 6. Backend resolves user
           ↓
-7. MINI App displays:
+7. LIFF app displays:
 
    ชื่อผู้ใช้
    Property
    Room
           ↓
-8. User can close the MINI App
+8. User can close the LIFF app
 ```
 
 Do not proceed to payment, messaging, invoices, or advanced tenant
 features until this flow is stable.
 
-**Status: complete.** Verified end to end on 2026-09-01 — the MINI App opens
+**Status: complete.** Verified end to end on 2026-09-01 — the LIFF app opens
 from LINE, LIFF initialises, the user authenticates, the backend verifies the
 ID token with LINE, resolves the account through `identities`, and renders the
 building and room.
@@ -880,14 +921,14 @@ building and room.
 
 ## 20. Design Decision
 
-### One platform, one MINI App
+### One platform, one LIFF app
 
 `dorm.place` is a multi-tenant platform.
 
 Therefore:
 
 ``` text
-1 LINE MINI App
+1 LINE LIFF app
 1 LINE Login identity integration
 1 Backend platform
 1 Database
@@ -926,7 +967,7 @@ platform.
 
 ## 21. Deployment
 
-The MINI App is a static build. It has no server runtime of its own --- all
+The LIFF app is a static build. It has no server runtime of its own --- all
 logic that requires a server belongs to the backend API.
 
 Hosting:
@@ -945,8 +986,8 @@ dist/
 Cloudflare Pages
     │
     ▼
-dorm.playxdev.com   (Developing)
-app.dorm.place      (Published)
+dorm.playxdev.com   (development)
+app.dorm.place      (production)
 ```
 
 `wrangler.jsonc` declares `pages_build_output_dir`, which is what identifies
@@ -1013,8 +1054,8 @@ shares a path prefix with the unhashed contents of `public/assets`.
 
 No `X-Frame-Options` or `frame-ancestors` directive is set.
 
-LINE MINI Apps run inside the LINE in-app browser and the LIFF login flow
-performs cross-origin redirects. Framing restrictions break those flows.
+LIFF apps run inside the LINE in-app browser and the LIFF login flow performs
+cross-origin redirects. Framing restrictions break those flows.
 
 ### LINE endpoint
 
@@ -1022,12 +1063,12 @@ After deployment, the LINE Developers Console endpoint URL for the target
 environment is pointed at the Pages deployment.
 
 ``` text
-Developing   →   https://dorm.playxdev.com/
-Published    →   https://app.dorm.place/
+development   →   https://dorm.playxdev.com/
+production    →   https://app.dorm.place/
 ```
 
-Consistent with section 13, changing the endpoint never requires creating a
-second LINE MINI App.
+Consistent with section 13, changing the endpoint never requires a second LINE
+provider.
 
 ------------------------------------------------------------------------
 
@@ -1060,7 +1101,7 @@ system issues an invite code + QR
   │  at handover
   │                                    adds the LINE Official Account
   │                                          │
-  │                                    opens the MINI App, signs in
+  │                                    opens the LIFF app, signs in
   │                                          │
   │                                    "not linked to a dormitory yet"
   │                                          │
@@ -1105,7 +1146,7 @@ bind a tenant to a room they have left.
 ### The QR carries only a code
 
 ``` text
-✅  https://miniapp.line.me/<LIFF_ID>?invite=K7M9P4QX
+✅  https://liff.line.me/<LIFF_ID>?invite=K7M9P4QX
 ❌  {"name":"...","room":"609","rent":450000}
 ```
 
@@ -1114,7 +1155,7 @@ could never be revoked. What the QR holds is opaque; the app fetches the terms
 from the backend, which can expire or revoke the code at any time.
 
 The QR encodes the permanent link rather than the bare code so that any camera
-opens the MINI App. Requiring the tenant to already be inside the app before
+opens the LIFF app. Requiring the tenant to already be inside the app before
 scanning would make the QR useless in the one moment it is most wanted — the
 tenant standing at the door with the sheet in their hand.
 
@@ -1168,7 +1209,7 @@ not standing in front of the owner. The same code therefore also works as a
 link:
 
 ``` text
-https://miniapp.line.me/<LIFF_ID>?invite=K7M9P4QX
+https://liff.line.me/<LIFF_ID>?invite=K7M9P4QX
 ```
 
 One code, two ways in — not two systems.
@@ -1177,7 +1218,7 @@ One code, two ways in — not two systems.
 
 The OA is the distribution and notification channel, not a gate.
 
-Adding it is offered through the MINI App's own add-friend option at login,
+Adding it is offered through the LIFF app's own add-friend option at login,
 never enforced: a tenant who declines must still be able to reach their room.
 A prompt on the home screen can ask again later.
 
@@ -1219,7 +1260,7 @@ carries initiation method `11` (static), the full one `12` (dynamic).
 ### The same generator in two languages
 
 `dormplace` builds payloads in TypeScript for its own invoice pages;
-`dormapi` builds them in Go for the MINI App. Two implementations of one
+`dormapi` builds them in Go for the LIFF app. Two implementations of one
 byte-exact format is a standing risk — a divergence would surface as a bank app
 refusing to read the QR, in front of a tenant.
 
@@ -1242,7 +1283,7 @@ POST /me/invoices/{id}/payments
   │  writes verified = 0
   │  invoice balance unchanged
   │
-  │  MINI App shows the notice in orange:
+  │  LIFF app shows the notice in orange:
   │  "แจ้งชำระ รอตรวจสอบ", not subtracted
   │                                    backoffice: /invoices lists every
   │                                    unverified notice across all invoices

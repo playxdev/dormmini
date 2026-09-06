@@ -1,9 +1,9 @@
 # dorm-mini
 
-`dorm.place` LINE MINI App — the tenant-facing frontend for the dorm.place
+`dorm.place` LINE LIFF app — the tenant-facing frontend for the dorm.place
 multi-tenant dormitory management platform.
 
-One MINI App serves every dormitory. The property is a data boundary, not a
+One LIFF app serves every dormitory. The property is a data boundary, not a
 LINE application boundary. See [`docs/DESIGN-LINE-MINI.md`](docs/DESIGN-LINE-MINI.md)
 for the full specification.
 
@@ -110,7 +110,7 @@ with `VITE_` to browser code.
 | `VITE_APP_ENV` | `development` or `production` |
 | `VITE_APP_URL` | Public URL of this app |
 | `VITE_API_BASE_URL` | dorm.place backend base URL |
-| `VITE_LINE_LIFF_ID` | LIFF ID for the target LINE environment |
+| `VITE_LINE_LIFF_ID` | LIFF ID of the LINE Login channel being served |
 | `VITE_MOCK` | `1` to run with fixtures and no LINE/backend |
 
 Production URLs are never hard-coded. Copy `.env.example` to `.env` and keep
@@ -118,18 +118,53 @@ Production URLs are never hard-coded. Copy `.env.example` to `.env` and keep
 
 ### Environments
 
-| | Frontend | Backend API | LINE environment |
+| | Frontend | Backend API | LIFF app |
 | --- | --- | --- | --- |
-| Development | `https://dorm.playxdev.com` | `https://apidorm.playxdev.com` | Developing |
-| Production | `https://app.dorm.place` | `https://api.dorm.place` | Published |
+| Development | `https://dorm.playxdev.com` | `https://apidorm.playxdev.com` | one LIFF app on the `dorm.place` channel |
+| Production | `https://app.dorm.place` | `https://api.dorm.place` | a second LIFF app on the same channel |
 
 `playxdev.com` is the shared PlayDevX development root, so API subdomains are
 project-level and flat: `api<project>.playxdev.com` — `apidorm`, `apipenbun`,
 `apiedv`. Not `api.dorm.playxdev.com`. `dorm.place` is the product's own domain
 and uses the nested `api.` form.
 
-Moving to production changes the LIFF endpoint and configuration only. It must
-never require creating a second LINE MINI App.
+Moving to production changes the endpoint and the configuration only. A LIFF
+app carries exactly one endpoint URL, so serving both frontends at once means a
+second LIFF app — added to the **same** `dorm.place` channel. Both then share
+one channel ID, so `LINE_CHANNEL_ID` in `dormapi` is unchanged and only
+`VITE_LINE_LIFF_ID` differs between the builds.
+
+Never create the second one under a different provider. A LINE user ID is
+unique per provider, not per channel: a different provider issues a different
+`sub` for the same person, and every tenant already bound to a room would have
+to be linked again.
+
+### Why a LINE Login channel and not a MINI App channel
+
+The app is written against plain LIFF APIs — `init`, `login`, `getIDToken`,
+`getProfile`, `scanCodeV2`, `closeWindow` — and uses nothing exclusive to LINE
+MINI App. That makes the channel type a deployment choice rather than an
+architectural one.
+
+A MINI App channel in the `Developing` environment can only be opened by LINE
+accounts holding a role on that channel, and reaching `Published` means a
+review by LY Corporation that takes one to two weeks. Submitting from Thailand
+additionally requires a **certified provider** account, which PlayDevX does not
+have yet. A LINE Login channel is switched from `Developing` to `Published`
+from the console with no review, and is then open to any LINE user.
+
+The MINI App channel still exists and is untouched
+(`2011361700-JZlB29PM` / `…01-CK48xQPp` / `…02-IZrdVpdn`). Moving to it later
+is two configuration values — `VITE_LINE_LIFF_ID` here and `LINE_CHANNEL_ID`
+in `dormapi` — plus the endpoint in the console. No code changes.
+
+What the LINE Login channel gives up: the permanent link is
+`https://liff.line.me/<LIFF_ID>` rather than `https://miniapp.line.me/…`, the
+app does not appear in LINE's MINI App directory, the consent screen costs one
+extra tap on first login, and **service messages** — notifying a tenant who has
+not added the Official Account as a friend — are a MINI App feature. Bill
+notifications therefore go through the Messaging API to tenants who accepted
+the add-friend option at login.
 
 ## Deployment
 
@@ -205,17 +240,29 @@ to `main` deploys production; other branches get preview URLs.
 - `/assets/*` — verbatim copies of `public/assets/`, one hour with revalidation.
 - `/` and `/index.html` — `no-cache`, so a deploy is picked up immediately.
 
-No `X-Frame-Options` or `frame-ancestors` is set. LINE MINI Apps run inside the
+No `X-Frame-Options` or `frame-ancestors` is set. LIFF apps run inside the
 LINE in-app browser and the LIFF login flow performs cross-origin redirects;
 framing restrictions break those flows.
 
 ### Pointing LINE at the deployment
 
-After the first deploy, set the LINE Developers Console **Developing** endpoint
-URL to the Pages URL (or to `https://dorm.playxdev.com` once the custom domain
-is attached). Production later swaps in `https://app.dorm.place`.
+After the first deploy, set the LIFF app's **Endpoint URL** in the LINE
+Developers Console to the Pages URL, or to `https://dorm.playxdev.com` once the
+custom domain is attached.
 
-Changing the endpoint never requires creating a second LINE MINI App.
+Two settings on the same screen are not optional:
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| Size | `Full` | `liff.scanCodeV2()` only runs at `Full` inside the LINE client on iOS |
+| Scan QR | on | without it `scanCodeV2()` is not available at all and onboarding falls back to typing the code |
+
+Scopes are `openid` and `profile`. `openid` is what makes `getIDToken()`
+return a token; without it authentication cannot complete. Do not enable
+`chat_message.write` — it disables browser minimisation.
+
+The add-friend option is set to *On (Normal)*: the Official Account is offered
+at login and a tenant who declines still reaches their room.
 
 
 ## Project structure
@@ -271,7 +318,7 @@ decided on.
 
 Authentication sends the LINE **ID token** (signed by LINE, verifiable by the
 backend) rather than the access token. The returned session token is kept in
-`sessionStorage`, so it does not outlive the MINI App window.
+`sessionStorage`, so it does not outlive the LIFF window.
 
 Raw API errors, stack traces and tokens are never rendered. `AppError` carries
 a stable code that `bootstrap.js` maps to Thai copy; diagnostics go to the

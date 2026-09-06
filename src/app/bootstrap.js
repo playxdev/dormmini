@@ -356,7 +356,7 @@ function startRouter(root, session) {
  * Reads an invite code the app was opened with.
  *
  * LIFF forwards query parameters from the permanent link through to the
- * endpoint, so `miniapp.line.me/<liffId>?invite=CODE` arrives here intact. It
+ * endpoint, so `liff.line.me/<liffId>?invite=CODE` arrives here intact. It
  * is the entry path for tenants who cannot scan — old iOS, desktop, or simply
  * not standing in front of the owner.
  */
