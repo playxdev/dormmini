@@ -1,6 +1,6 @@
 /**
  * LINE-specific logic. Kept isolated so the rest of the app has no LIFF
- * dependency (DESIGN-LINE-MINI.md section 14).
+ * dependency (DESIGN.md section 14).
  */
 
 import liff from '@line/liff';

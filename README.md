@@ -4,8 +4,12 @@
 multi-tenant dormitory management platform.
 
 One LIFF app serves every dormitory. The property is a data boundary, not a
-LINE application boundary. See [`docs/DESIGN-LINE-MINI.md`](docs/DESIGN-LINE-MINI.md)
-for the full specification.
+LINE application boundary.
+
+| | |
+| --- | --- |
+| [`docs/DESIGN.md`](docs/DESIGN.md) | The specification — screens, LINE wiring, deployment, security, and the reasoning behind each |
+| `TODO.md` | What is not built, deferred, or undecided. It spans all three services, so it sits beside `DORMPLACE.md` in the workspace rather than in this repository |
 
 ## Where this sits
 
@@ -22,8 +26,8 @@ to be visible here immediately, and D1 cannot query across databases.
 
 ## Status
 
-**1.0.0.** Every screen in §10 that this system can serve is built, and every
-control leads somewhere — nothing renders disabled.
+**1.0.0.** Every screen the system can serve is built, and every control leads
+somewhere — nothing renders disabled.
 
 ```
 Open from LINE → LIFF init → LINE login → backend auth
@@ -40,33 +44,24 @@ Open from LINE → LIFF init → LINE login → backend auth
 | Announcements | the building's notice board, unread badge, marked read on open |
 | Menu | identity, every screen, the app version |
 
-**Onboarding** (§22) is complete: an unlinked tenant can scan the QR the owner
+**Onboarding** is complete: an unlinked tenant can scan the QR the owner
 issues, or type the code, review the terms, and slide to confirm. The same code
 also arrives as `?invite=CODE` on the permanent link, for tenants who cannot
 scan. The scan button on the tab bar runs the same flow for a tenant who
 already has a room and is handed a second one.
 
-`liff.scanCodeV2()` needs **Scan QR** enabled for the LIFF app in the LINE
-Developers Console, and on iOS works only when the LIFF size is `Full`. The app
-asks LIFF whether the scanner is available rather than guessing, and falls back
-to code entry when it is not.
-
 Amounts cross the API as integer satang and dates in the Gregorian calendar.
 `src/lib/format.js` is the only place either becomes what a Thai tenant reads —
 baht with two decimals, and Buddhist-era years.
-
-Meter *photos* are not shown. The owner takes them as their own audit trail
-during the walk, and what a tenant needs to check a bill is the two numbers.
-
-Documents and a contact screen are not built. They were tiles in the original
-design; a tile that cannot be tapped teaches people to stop looking at the
-grid, so they are gone from 1.0.0 rather than sitting there greyed out.
 
 ## Stack
 
 - [Vite](https://vite.dev) — dev server and build
 - [`@line/liff`](https://developers.line.biz/en/docs/liff/) — LINE Front-end Framework
 - Vanilla ES modules, no UI framework
+
+LINE-specific logic stays inside `src/auth/line.js`. No other module imports
+`@line/liff`.
 
 ## Getting started
 
@@ -76,6 +71,11 @@ cp .env.example .env
 # fill in VITE_LINE_LIFF_ID and VITE_API_BASE_URL
 npm run dev
 ```
+
+Every variable is described in [`docs/DESIGN.md`](docs/DESIGN.md), along with
+the LIFF app and channel the values come from. Vite only exposes variables
+prefixed with `VITE_` to browser code and inlines each into the bundle at build
+time — so they are public by design, and no secret belongs in the list.
 
 ### Running without LINE or a backend
 
@@ -100,194 +100,40 @@ Mock mode requires no LIFF ID and makes no network calls.
 | `npm run deploy` | Build and deploy to Cloudflare Pages production (`--branch main`) |
 | `npm run deploy:preview` | Build and deploy to the `preview` branch |
 
-## Configuration
-
-All configuration is environment-based. Vite only exposes variables prefixed
-with `VITE_` to browser code.
-
-| Variable | Description |
-| --- | --- |
-| `VITE_APP_ENV` | `development` or `production` |
-| `VITE_APP_URL` | Public URL of this app |
-| `VITE_API_BASE_URL` | dorm.place backend base URL |
-| `VITE_LINE_LIFF_ID` | LIFF ID of the LINE Login channel being served |
-| `VITE_MOCK` | `1` to run with fixtures and no LINE/backend |
-
-Production URLs are never hard-coded. Copy `.env.example` to `.env` and keep
-`.env` out of source control.
-
-### Current LINE wiring
-
-| | |
-| --- | --- |
-| Provider | PlayDevX |
-| Channel | `dorm.place`, LINE Login, Published, ID `2011358311` |
-| LIFF app | `2011358311-IAdUIyFx` — size `Full`, Scan QR on, scopes `openid` + `profile`, add-friend *On (Normal)* |
-| Permanent link | `https://liff.line.me/2011358311-IAdUIyFx` |
-| Official Account | `@844wzost`, linked to the channel; its rich menu opens the permanent link |
-
-`LINE_CHANNEL_ID` in `dormapi` must be `2011358311`. It is the `aud` claim of
-every ID token this LIFF app mints, and a mismatch rejects the login after
-LINE has already accepted it.
-
-Anything that opens the app — a rich menu button, a broadcast, an invite QR —
-points at the permanent link. The endpoint URL opens in the plain in-app
-browser with no LIFF context, where `liff.init()` fails and there is no login
-and no scanner.
-
-### Environments
-
-| | Frontend | Backend API | LIFF app |
-| --- | --- | --- | --- |
-| Development | `https://dorm.playxdev.com` | `https://apidorm.playxdev.com` | one LIFF app on the `dorm.place` channel |
-| Production | `https://app.dorm.place` | `https://api.dorm.place` | a second LIFF app on the same channel |
-
-`playxdev.com` is the shared PlayDevX development root, so API subdomains are
-project-level and flat: `api<project>.playxdev.com` — `apidorm`, `apipenbun`,
-`apiedv`. Not `api.dorm.playxdev.com`. `dorm.place` is the product's own domain
-and uses the nested `api.` form.
-
-Moving to production changes the endpoint and the configuration only. A LIFF
-app carries exactly one endpoint URL, so serving both frontends at once means a
-second LIFF app — added to the **same** `dorm.place` channel. Both then share
-one channel ID, so `LINE_CHANNEL_ID` in `dormapi` is unchanged and only
-`VITE_LINE_LIFF_ID` differs between the builds.
-
-Never create the second one under a different provider. A LINE user ID is
-unique per provider, not per channel: a different provider issues a different
-`sub` for the same person, and every tenant already bound to a room would have
-to be linked again.
-
-### Why a LINE Login channel and not a MINI App channel
-
-The app is written against plain LIFF APIs — `init`, `login`, `getIDToken`,
-`getProfile`, `scanCodeV2`, `closeWindow` — and uses nothing exclusive to LINE
-MINI App. That makes the channel type a deployment choice rather than an
-architectural one.
-
-A MINI App channel in the `Developing` environment can only be opened by LINE
-accounts holding a role on that channel, and reaching `Published` means a
-review by LY Corporation that takes one to two weeks. Submitting from Thailand
-additionally requires a **certified provider** account, which PlayDevX does not
-have yet. A LINE Login channel is switched from `Developing` to `Published`
-from the console with no review, and is then open to any LINE user.
-
-The MINI App channel still exists and is untouched
-(`2011361700-JZlB29PM` / `…01-CK48xQPp` / `…02-IZrdVpdn`). Moving to it later
-is two configuration values — `VITE_LINE_LIFF_ID` here and `LINE_CHANNEL_ID`
-in `dormapi` — plus the endpoint in the console. No code changes.
-
-What the LINE Login channel gives up: the permanent link is
-`https://liff.line.me/<LIFF_ID>` rather than `https://miniapp.line.me/…`, the
-app does not appear in LINE's MINI App directory, the consent screen costs one
-extra tap on first login, and **service messages** — notifying a tenant who has
-not added the Official Account as a friend — are a MINI App feature. Bill
-notifications therefore go through the Messaging API to tenants who accepted
-the add-friend option at login.
-
 ## Deployment
 
-The app is a static Vite build hosted on **Cloudflare Pages**. `wrangler.jsonc`
-declares `pages_build_output_dir`, which is what marks the project as Pages
-rather than a Worker.
-
-Current deployment: <https://dorm.playxdev.com> (Pages project `dormmini`,
-also reachable at <https://dorm-mini.pages.dev>)
-
-The custom domain is attached to the Pages project directly. Cloudflare manages
-the DNS record for it — there is no hand-written A record and no origin IP.
-
-`.node-version` pins Node to 22.16.0 for the Pages build image. Vite 7 requires
-`^20.19.0 || >=22.12.0`; the v3 build image already defaults to a compatible
-version, but pinning keeps older build images from silently failing.
-
-> Cloudflare now recommends Workers with static assets for new projects. Pages
-> remains supported and actively maintained. Switching later means replacing
-> `pages_build_output_dir` with an `assets` block — the app code is unaffected.
-
-### Environment variables are build-time
-
-Vite inlines every `VITE_*` value into the bundle at build time. They are
-**build** variables, not runtime bindings — set them under *Settings →
-Environment variables → Production/Preview* in the Pages project, or they will
-be missing from the deployed bundle. Everything inlined is public by design
-(LIFF ID, API base URL); no secret ever belongs in this list.
-
-### Option A — direct upload from your machine
+A static Vite build on **Cloudflare Pages**, project `dormmini`, live at
+<https://dorm.playxdev.com> (also <https://dorm-mini.pages.dev>). The custom
+domain is attached to the Pages project directly — no hand-written DNS record
+and no origin IP. `wrangler.jsonc` declares `pages_build_output_dir`, which is
+what marks the project as Pages rather than a Worker.
 
 ```bash
-npx wrangler login          # once
-npm run deploy              # builds, then uploads dist/
-npm run deploy:preview      # same, to the preview branch
+npx wrangler login   # once
+npm run deploy
 ```
 
-Pages configuration files reject `account_id` — it is a Workers-only field. If
-your token has access to more than one Cloudflare account, select it with an
-environment variable instead:
+Three things bite here, and only here:
 
-```bash
-export CLOUDFLARE_ACCOUNT_ID=<ACCOUNT_ID>
-```
+- **`wrangler pages deploy` infers the Pages branch from the current git
+  branch.** Run from a feature branch it uploads a *preview* and still reports
+  success, while `dorm.playxdev.com` keeps serving the previous bundle. Both
+  scripts pass `--branch` explicitly for that reason.
+- **`VITE_*` values are build inputs, not runtime bindings.** With direct
+  upload they come from your local `.env`, because the build happens on your
+  machine. On a git-connected build they must be set under *Settings →
+  Environment variables* for Production and Preview, or they are simply missing
+  from the deployed bundle.
+- **Pages configuration files reject `account_id`** — it is a Workers-only
+  field. Where a token can reach more than one account, select it with
+  `CLOUDFLARE_ACCOUNT_ID`; `npx wrangler whoami` lists them.
 
-Run `npx wrangler whoami` to list the accounts your token can reach.
+`.node-version` pins Node to 22.16.0 for the Pages build image. Vite 7 needs
+`^20.19.0 || >=22.12.0`; the v3 image already defaults to something compatible,
+but pinning keeps an older image from silently failing.
 
-With direct upload, `VITE_*` values come from your **local** `.env`, since the
-build happens on your machine.
-
-`wrangler pages deploy` infers the Pages branch from the current git branch, so
-without `--branch` a deploy from a feature branch silently lands on a preview
-URL and leaves `dorm.playxdev.com` on the old bundle. Both scripts pass
-`--branch` explicitly for that reason.
-
-### Option B — Git-connected build (recommended for a team)
-
-Connect the repository in the Cloudflare dashboard and use:
-
-| Setting | Value |
-| --- | --- |
-| Framework preset | None (or Vite) |
-| Build command | `npm run build` |
-| Build output directory | `dist` |
-| Node version | 20 or later |
-
-Then add `VITE_APP_ENV`, `VITE_APP_URL`, `VITE_API_BASE_URL` and
-`VITE_LINE_LIFF_ID` as production and preview environment variables. Every push
-to `main` deploys production; other branches get preview URLs.
-
-### Caching and headers
-
-`public/_headers` is copied verbatim into the build:
-
-- `/static/*` — content-hashed Vite output, cached immutably for one year.
-  `vite.config.js` sets `assetsDir: "static"` specifically to keep hashed output
-  separate from `public/assets/`, whose filenames are stable.
-- `/assets/*` — verbatim copies of `public/assets/`, one hour with revalidation.
-- `/` and `/index.html` — `no-cache`, so a deploy is picked up immediately.
-
-No `X-Frame-Options` or `frame-ancestors` is set. LIFF apps run inside the
-LINE in-app browser and the LIFF login flow performs cross-origin redirects;
-framing restrictions break those flows.
-
-### Pointing LINE at the deployment
-
-After the first deploy, set the LIFF app's **Endpoint URL** in the LINE
-Developers Console to the Pages URL, or to `https://dorm.playxdev.com` once the
-custom domain is attached.
-
-Two settings on the same screen are not optional:
-
-| Setting | Value | Why |
-| --- | --- | --- |
-| Size | `Full` | `liff.scanCodeV2()` only runs at `Full` inside the LINE client on iOS |
-| Scan QR | on | without it `scanCodeV2()` is not available at all and onboarding falls back to typing the code |
-
-Scopes are `openid` and `profile`. `openid` is what makes `getIDToken()`
-return a token; without it authentication cannot complete. Do not enable
-`chat_message.write` — it disables browser minimisation.
-
-The add-friend option is set to *On (Normal)*: the Official Account is offered
-at login and a tenant who declines still reaches their room.
-
+Caching, framing headers and the LINE endpoint settings are in
+[`docs/DESIGN.md`](docs/DESIGN.md).
 
 ## Project structure
 
@@ -303,7 +149,8 @@ src/
 ├── api/
 │   └── client.js      HTTPS client, typed AppError codes
 ├── lib/
-│   └── format.js      money and Thai date formatting
+│   ├── format.js      money and Thai date formatting
+│   └── scanner.js     camera 2D code reader, for where LIFF has none
 ├── pages/
 │   ├── login.js         unauthenticated screen
 │   ├── home.js          identity, balance, tile grid
@@ -325,50 +172,3 @@ public/
 
 wrangler.jsonc         Cloudflare Pages project config
 ```
-
-LINE-specific logic stays inside `src/auth/line.js`. No other module imports
-`@line/liff`.
-
-## Security
-
-The browser holds only public configuration: the LIFF ID, the API base URL and
-the app environment. Channel secrets, Messaging API tokens, database
-credentials and JWT signing keys live on the backend.
-
-Authorization is the backend's job. The client never sends `property_id`,
-`room_id` or `tenant_id` — the server derives every authorized resource from
-the authenticated session. `GET /api/v1/me` returns the context the server
-decided on.
-
-Authentication sends the LINE **ID token** (signed by LINE, verifiable by the
-backend) rather than the access token. The returned session token is kept in
-`sessionStorage`, so it does not outlive the LIFF window.
-
-Raw API errors, stack traces and tokens are never rendered. `AppError` carries
-a stable code that `bootstrap.js` maps to Thai copy; diagnostics go to the
-console in non-production builds only.
-
-## Backend API
-
-```
-POST /api/v1/auth/line     { id_token } -> { token }
-GET  /api/v1/me            -> { user_id, tenant_id, property_id, property_name, room_id }
-```
-
-Phase 2 will add `/api/v1/me/property` and `/api/v1/me/room`.
-
-## Design
-
-The visual system is derived from `docs/dorm-uxui-v1.0.png`. Tokens live at the
-top of `src/styles/app.css`:
-
-| Token | Value | Use |
-| --- | --- | --- |
-| `--green` | `#009245` | Primary actions, LINE login, nav FAB |
-| `--green-header` | `#008d58` | Home header block |
-| `--bg` | `#f3f7f4` | Page ground |
-| `--danger` | `#de0000` | Outstanding balance |
-| `--blue` / `--purple` / `--orange` / `--red` | | Feature accents |
-
-UX principles: mobile-first, Thai-first, fast startup, large touch targets,
-minimal typing, important actions within one or two taps.

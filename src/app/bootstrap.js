@@ -1,5 +1,5 @@
 /**
- * Application bootstrap (DESIGN-LINE-MINI.md section 6).
+ * Application bootstrap (DESIGN.md section 6).
  *
  *   config -> LIFF init -> login state -> LINE identity
  *   -> backend auth -> tenant/property/room -> home

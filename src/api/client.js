@@ -2,7 +2,7 @@
  * HTTPS client for the dorm.place backend.
  *
  * Raw API errors, stack traces and tokens are never surfaced to the UI
- * (DESIGN-LINE-MINI.md section 16). Callers receive an AppError carrying a
+ * (DESIGN.md section 16). Callers receive an AppError carrying a
  * stable `code` that the pages translate into Thai copy.
  */
 

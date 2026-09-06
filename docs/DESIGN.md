@@ -1,6 +1,8 @@
-# DESIGN-LINE-MINI.md
-
 # dorm.place --- LINE LIFF App Design Specification
+
+> What exists and why. Deferred work, open decisions and credentials still to
+> rotate are in `TODO.md`, which spans all three services and sits beside
+> `DORMPLACE.md` in the workspace.
 
 ## 1. Purpose
 
@@ -519,14 +521,17 @@ Not required yet:
 
 ### Phase 2 --- Tenant Features
 
+Every screen below is built as of 1.0.0. What is not built at all is in
+`TODO.md` §4.
+
 ``` text
 Home
-├── My Room            done
-├── Invoice            done
-├── Payment            done (PromptPay QR + reported notice)
-├── Water/Electricity  blocked on file storage for meter photos
-├── Repair Request     done
-└── Announcements      not started
+├── My Room
+├── Invoice
+├── Payment            PromptPay QR + reported notice
+├── Water/Electricity
+├── Repair Request
+└── Announcements
 ```
 
 Meter readings remain blocked on a decision rather than on work: where the
@@ -1244,7 +1249,7 @@ A prompt on the home screen can ask again later.
 - **Scan QR** must be enabled for the LIFF app in the LINE Developers Console.
 - On iOS, `liff.scanCodeV2()` works only when the LIFF size is `Full`.
 
-### Two readers, and an open question
+### Two readers, one button
 
 There are two ways this app can read a code, and they do not overlap:
 
@@ -1254,29 +1259,12 @@ getUserMedia        anywhere the page owns the camera
 ```
 
 `src/lib/scanner.js` supplies the second, and `onScan` prefers LIFF's wherever
-it exists. Observed on 2026-09-06: leaving LINE and opening
-`dorm.playxdev.com` in an ordinary browser scans correctly through the in-page
-reader. Inside the LINE client on iOS the in-app browser hands the page no
-camera at all, so that path cannot serve an iPhone tenant.
+it exists — inside the LINE client it is the only reader that can reach the
+camera at all. The decoder is imported dynamically: it is a third of this
+app's JavaScript and a tenant opening from LINE never loads it.
 
-**Open — not yet decided.** Leaving LINE to scan is a working escape hatch but
-not the intended experience: the tenant should stay inside the LINE
-environment. Three ways to get there, none chosen:
-
-1. Turn on *Scan QR* and set the LIFF size to `Full`, and let LIFF's reader
-   serve every tenant inside LINE. Cheapest, and the only one that works on
-   iOS inside the client. Costs the `Full` size, which the app must then look
-   right at.
-2. Keep the in-page reader as the out-of-LINE fallback only, and accept that
-   an iOS tenant who somehow reaches it types the code instead.
-3. Lean on `?invite=CODE` and stop asking a tenant to scan at all. The owner
-   sends the link through the Official Account, the tenant taps it, and
-   `inviteCodeFromUrl()` carries the code into the review screen with no
-   camera anywhere in the flow. The QR sheet stays for tenants standing in
-   front of the owner.
-
-Option 3 is the one that removes the constraint rather than satisfying it, and
-it is worth weighing before spending the `Full` size on option 1.
+Which of these the product should depend on is not settled. `TODO.md` §2
+carries the question.
 
 ## 23. Payment
 
@@ -1366,7 +1354,4 @@ the backoffice creates need no key.
 
 ### Not yet built
 
-Slip images. The tenant reports an amount and a reference; the owner matches
-those against a statement by hand. Uploading the slip needs R2 and an S3-API
-client in Go, and was cut from the first slice deliberately — a slip is
-evidence for a human, and the human can already do the job without it.
+Slip images, and everything else deferred, in `TODO.md` §4.

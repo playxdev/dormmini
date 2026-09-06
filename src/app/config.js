@@ -2,7 +2,7 @@
  * Environment configuration.
  *
  * Only public values belong here. Channel secrets, messaging tokens and
- * signing keys live on the backend (DESIGN-LINE-MINI.md section 12).
+ * signing keys live on the backend (DESIGN.md section 12).
  */
 
 const env = import.meta.env;
