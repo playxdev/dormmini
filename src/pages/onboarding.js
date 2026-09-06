@@ -9,6 +9,7 @@
 
 import { baht, shortDate } from '../lib/format.js';
 import { canScanCode } from '../auth/line.js';
+import { cameraScanAvailable } from '../lib/scanner.js';
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
@@ -27,7 +28,9 @@ const CODE_PATTERN = /^[34679ACDEFGHJKMNPQRTUVWXY]{8}$/;
  * @param {{onScan: () => void, onCode: (code: string) => void}} actions
  */
 export function renderUnlinked(root, actions) {
-  const scannable = canScanCode();
+  // Two readers, one button. LIFF's is the only one the LINE client allows;
+  // the camera covers an external browser, where LIFF has none to offer.
+  const scannable = canScanCode() || cameraScanAvailable();
 
   root.innerHTML = `
     <main class="screen screen--center screen--onboard">

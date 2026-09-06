@@ -6,7 +6,8 @@
  */
 
 import { config, assertConfig } from './config.js';
-import { initLine, isLoggedIn, login, getIdToken, getLineProfile, closeWindow, scanCode } from '../auth/line.js';
+import { initLine, isLoggedIn, login, getIdToken, getLineProfile, closeWindow, scanCode, canScanCode } from '../auth/line.js';
+import { scanWithCamera } from '../lib/scanner.js';
 import {
   authenticateWithLine, fetchMe, fetchInvoices, fetchInvoice,
   fetchRepairs, fetchRepair, createRepair,
@@ -403,13 +404,17 @@ function startOnboarding(root) {
     onCode: review,
     onScan: async () => {
       try {
-        const value = await scanCode();
+        // LIFF's reader first wherever it exists: inside the LINE client it is
+        // the only one that can reach the camera at all.
+        const value = canScanCode() ? await scanCode() : await scanWithCamera();
         if (!value) return;
         // The QR may hold a bare code or the permanent link containing one.
         const match = String(value).match(/[A-Za-z0-9]{8}$/);
         await review((match ? match[0] : value).toUpperCase());
       } catch (error) {
-        // Almost always "Scan QR" not being enabled for the LIFF app.
+        // Inside LINE this is "Scan QR" left off for the LIFF app; in a
+        // browser it is a refused camera permission. The tenant can type the
+        // code either way, so the screen says so rather than dead-ending.
         console.error('[dorm.place] scan failed', error);
         renderUnlinkedWith(root, 'เปิดกล้องไม่สำเร็จ กรุณากรอกรหัสแทน');
       }

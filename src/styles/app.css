@@ -812,3 +812,58 @@ textarea.field__control { min-height: 96px; resize: vertical; }
 .menu-row__chevron { width: 16px; height: 16px; flex: none; color: var(--muted); }
 
 .menu-version { margin: 20px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
+
+/* ---------- camera scanner ---------- */
+
+/* Full-screen viewfinder for the in-page reader. Inside the LINE client this
+   never appears: LIFF opens its own scanner over the app. */
+.scanner {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 0 20px calc(24px + env(safe-area-inset-bottom));
+}
+
+.scanner__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The frame is guidance, not a crop: the decoder reads the whole frame, so a
+   code that lands slightly outside it still scans. */
+.scanner__frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(64vw, 260px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -60%);
+  border: 3px solid rgba(255, 255, 255, .9);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .45);
+}
+
+.scanner__hint {
+  position: relative;
+  margin: 0;
+  color: #fff;
+  font-size: 14px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
+}
+
+.scanner__cancel {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  background: rgba(255, 255, 255, .95);
+  color: #101914;
+}
