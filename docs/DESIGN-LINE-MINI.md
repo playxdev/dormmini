@@ -168,21 +168,21 @@ already bound to a room would have to be linked again.
 ``` text
 Provider     PlayDevX
 Channel      dorm.place, LINE Login, Published, ID 2011358311
-LIFF app     2011358311-lAdUIyFx
-LIFF URL     https://liff.line.me/2011358311-lAdUIyFx
+LIFF app     2011358311-IAdUIyFx
+LIFF URL     https://liff.line.me/2011358311-IAdUIyFx
 ```
 
 The LIFF ID is stored in application configuration:
 
 ``` text
-VITE_LINE_LIFF_ID=2011358311-lAdUIyFx
+VITE_LINE_LIFF_ID=2011358311-IAdUIyFx
 ```
 
 The API verifies the `aud` claim of every ID token against the numeric channel
 ID, so `LINE_CHANNEL_ID` in `dormapi` must name the same channel:
 
 ``` text
-LIFF ID 2011358311-lAdUIyFx   ->   LINE_CHANNEL_ID=2011358311
+LIFF ID 2011358311-IAdUIyFx   ->   LINE_CHANNEL_ID=2011358311
 ```
 
 A mismatch fails after LINE has already accepted the login, which reads as a
@@ -196,7 +196,7 @@ option at login an account to offer. Its rich menu carries the entry point.
 The rich menu button must open the **LIFF URL**, never the endpoint URL:
 
 ``` text
-✅  https://liff.line.me/2011358311-lAdUIyFx
+✅  https://liff.line.me/2011358311-IAdUIyFx
 ❌  https://dorm.playxdev.com/
 ```
 

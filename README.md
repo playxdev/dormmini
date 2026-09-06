@@ -122,8 +122,8 @@ Production URLs are never hard-coded. Copy `.env.example` to `.env` and keep
 | --- | --- |
 | Provider | PlayDevX |
 | Channel | `dorm.place`, LINE Login, Published, ID `2011358311` |
-| LIFF app | `2011358311-lAdUIyFx` — size `Full`, Scan QR on, scopes `openid` + `profile`, add-friend *On (Normal)* |
-| Permanent link | `https://liff.line.me/2011358311-lAdUIyFx` |
+| LIFF app | `2011358311-IAdUIyFx` — size `Full`, Scan QR on, scopes `openid` + `profile`, add-friend *On (Normal)* |
+| Permanent link | `https://liff.line.me/2011358311-IAdUIyFx` |
 | Official Account | `@844wzost`, linked to the channel; its rich menu opens the permanent link |
 
 `LINE_CHANNEL_ID` in `dormapi` must be `2011358311`. It is the `aud` claim of
