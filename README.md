@@ -116,6 +116,25 @@ with `VITE_` to browser code.
 Production URLs are never hard-coded. Copy `.env.example` to `.env` and keep
 `.env` out of source control.
 
+### Current LINE wiring
+
+| | |
+| --- | --- |
+| Provider | PlayDevX |
+| Channel | `dorm.place`, LINE Login, Published, ID `2011358311` |
+| LIFF app | `2011358311-lAdUIyFx` — size `Full`, Scan QR on, scopes `openid` + `profile`, add-friend *On (Normal)* |
+| Permanent link | `https://liff.line.me/2011358311-lAdUIyFx` |
+| Official Account | `@844wzost`, linked to the channel; its rich menu opens the permanent link |
+
+`LINE_CHANNEL_ID` in `dormapi` must be `2011358311`. It is the `aud` claim of
+every ID token this LIFF app mints, and a mismatch rejects the login after
+LINE has already accepted it.
+
+Anything that opens the app — a rich menu button, a broadcast, an invite QR —
+points at the permanent link. The endpoint URL opens in the plain in-app
+browser with no LIFF context, where `liff.init()` fails and there is no login
+and no scanner.
+
 ### Environments
 
 | | Frontend | Backend API | LIFF app |

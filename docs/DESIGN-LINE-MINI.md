@@ -165,27 +165,44 @@ already bound to a room would have to be linked again.
 
 ### Configuration
 
-The LIFF URL is:
-
 ``` text
-https://liff.line.me/<LIFF_ID>
+Provider     PlayDevX
+Channel      dorm.place, LINE Login, Published, ID 2011358311
+LIFF app     2011358311-lAdUIyFx
+LIFF URL     https://liff.line.me/2011358311-lAdUIyFx
 ```
 
-The LIFF ID must be stored in application configuration:
+The LIFF ID is stored in application configuration:
 
 ``` text
-VITE_LINE_LIFF_ID=<LIFF_ID>
+VITE_LINE_LIFF_ID=2011358311-lAdUIyFx
 ```
 
 The API verifies the `aud` claim of every ID token against the numeric channel
 ID, so `LINE_CHANNEL_ID` in `dormapi` must name the same channel:
 
 ``` text
-LIFF ID 1234567890-AbCdEfGh   ->   LINE_CHANNEL_ID=1234567890
+LIFF ID 2011358311-lAdUIyFx   ->   LINE_CHANNEL_ID=2011358311
 ```
 
 A mismatch fails after LINE has already accepted the login, which reads as a
 backend fault rather than a configuration one.
+
+### The Official Account is the way in
+
+`@844wzost` is linked to the login channel, which is what gives the add-friend
+option at login an account to offer. Its rich menu carries the entry point.
+
+The rich menu button must open the **LIFF URL**, never the endpoint URL:
+
+``` text
+✅  https://liff.line.me/2011358311-lAdUIyFx
+❌  https://dorm.playxdev.com/
+```
+
+The endpoint opens in the plain in-app browser with no LIFF context, so
+`liff.init()` fails, there is no login and `scanCodeV2()` does not exist. The
+tenant sees an error screen rather than the app.
 
 A LIFF ID is public. It is inlined into the browser bundle by design and
 identifies the app, not the account. The **channel secret** is different: it is
