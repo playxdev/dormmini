@@ -97,7 +97,7 @@ Mock mode requires no LIFF ID and makes no network calls.
 | `npm run build` | Production build into `dist/` |
 | `npm run preview` | Serve the production build locally |
 | `npm run pages:dev` | Serve the build through the Cloudflare Pages runtime (applies `_headers`) |
-| `npm run deploy` | Build and deploy to Cloudflare Pages |
+| `npm run deploy` | Build and deploy to Cloudflare Pages production (`--branch main`) |
 | `npm run deploy:preview` | Build and deploy to the `preview` branch |
 
 ## Configuration
@@ -233,6 +233,11 @@ Run `npx wrangler whoami` to list the accounts your token can reach.
 
 With direct upload, `VITE_*` values come from your **local** `.env`, since the
 build happens on your machine.
+
+`wrangler pages deploy` infers the Pages branch from the current git branch, so
+without `--branch` a deploy from a feature branch silently lands on a preview
+URL and leaves `dorm.playxdev.com` on the old bundle. Both scripts pass
+`--branch` explicitly for that reason.
 
 ### Option B — Git-connected build (recommended for a team)
 

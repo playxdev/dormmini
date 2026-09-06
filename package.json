@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "pages:dev": "wrangler pages dev",
-    "deploy": "npm run build && wrangler pages deploy",
+    "deploy": "npm run build && wrangler pages deploy --branch main",
     "deploy:preview": "npm run build && wrangler pages deploy --branch preview"
   },
   "dependencies": {
