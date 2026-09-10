@@ -145,7 +145,7 @@ export function renderInviteReview(root, invite, actions) {
           <p class="review__room">ห้อง ${escapeHtml(invite.room_number)}</p>
 
           <ul class="line-items">
-            ${invite.tenant_name ? row('ผู้เช่า', escapeHtml(invite.tenant_name)) : ''}
+            ${invite.resident_name ? row('ผู้เช่า', escapeHtml(invite.resident_name)) : ''}
             ${row('ค่าเช่า', `${baht(invite.rent_satang)} บาท / เดือน`)}
             ${row('เงินประกัน', `${baht(invite.deposit_satang)} บาท`)}
             ${row('เริ่มสัญญา', shortDate(invite.start_date))}

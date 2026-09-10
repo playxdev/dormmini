@@ -112,7 +112,7 @@ const MOCK_INVITE = {
   code: 'K7M9P4QX',
   building_name: 'Oscar Apartment',
   room_number: '609',
-  tenant_name: 'หอมนภา ทดสอบ',
+  resident_name: 'หอมนภา ทดสอบ',
   rent_satang: 450000,
   deposit_satang: 900000,
   start_date: '2026-10-01',
@@ -149,7 +149,11 @@ const MOCK_METERS = {
 
 const MOCK_ME = {
   user_id: 'U001',
-  tenant_id: 'T001',
+  // The resident record the operator keeps. It was `tenant_id` until the API
+  // moved onto XYZ, where a tenant is the business renting the system — the
+  // old name now denotes the dormitory operator, not the person in the room.
+  resident_id: 'RES001',
+  operator_name: 'หอพักทดสอบ',
   property_id: 'P001',
   property_name: 'Oscar Apartment',
   room_id: 'A-203'

@@ -21,7 +21,12 @@ const PRIORITIES = [
   { value: 'low', label: 'ไม่เร่งด่วน' }
 ];
 
-const OPEN_STATUSES = new Set(['pending', 'in_progress']);
+// The API's vocabulary, which is the schema's `ticket.status` lowercased:
+// open, in_progress, done, cancelled. `open` was missing here, so every repair
+// a tenant had just filed appeared under "ปิดแล้ว" — the one tab they would
+// not think to look in. `pending` is not a status the API sends; it stays as
+// the label fallback below and is counted here so the two agree.
+const OPEN_STATUSES = new Set(['open', 'pending', 'in_progress']);
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
