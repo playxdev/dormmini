@@ -21,12 +21,23 @@ const PRIORITIES = [
   { value: 'low', label: 'ไม่เร่งด่วน' }
 ];
 
-// The API's vocabulary, which is the schema's `ticket.status` lowercased:
-// open, in_progress, done, cancelled. `open` was missing here, so every repair
-// a tenant had just filed appeared under "ปิดแล้ว" — the one tab they would
-// not think to look in. `pending` is not a status the API sends; it stays as
-// the label fallback below and is counted here so the two agree.
-const OPEN_STATUSES = new Set(['open', 'pending', 'in_progress']);
+/**
+ * Whether a repair belongs in the open tab.
+ *
+ * The API's vocabulary is the schema's `ticket.status` lowercased: open,
+ * in_progress, done, cancelled. The tab used to be an allow-list of open
+ * statuses and `open` — the one every repair is filed with — was missing from
+ * it, so a request a tenant had just submitted appeared under "ปิดแล้ว", the
+ * one tab nobody thinks to look in. It had been wrong since the tab existed.
+ *
+ * Named the closed ones instead, and exported so the split can be tested.
+ * Anything unrecognised counts as open: a status this build has not heard of
+ * is likelier to be a new stage of work than a finished one, and showing a
+ * live request as closed is the failure that just happened.
+ */
+export function isOpenRepair(status) {
+  return !['done', 'cancelled'].includes(String(status ?? '').toLowerCase());
+}
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
@@ -62,8 +73,8 @@ function header(title, backView) {
 }
 
 export function renderRepairs(root, { repairs }, navigate) {
-  const open = repairs.filter((r) => OPEN_STATUSES.has(r.status));
-  const closed = repairs.filter((r) => !OPEN_STATUSES.has(r.status));
+  const open = repairs.filter((r) => isOpenRepair(r.status));
+  const closed = repairs.filter((r) => !isOpenRepair(r.status));
 
   const list = (items, empty) =>
     items.length > 0 ? items.map(repairCard).join('') : `<p class="empty">${empty}</p>`;
